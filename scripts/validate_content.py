@@ -34,6 +34,7 @@ POOL_CODE = {"A": "A", "B": "B", "unit": "U"}
 FORMS = ("A", "B")
 CONFIDENCE_PER_FORM = 2
 ITEMS_PER_FORM = 3
+GIVEAWAY_RATIO = 1.5  # a key this much longer than every distractor reads as the answer
 SHA_RE = re.compile(r"^[0-9a-f]{40}$")
 SKILL_ID_RE = re.compile(r"^[A-Z][0-9]+$")
 UNIT_ID_RE = re.compile(r"^([A-Z][0-9]+)-[0-9]{2}$")
@@ -287,6 +288,21 @@ def validate_questions(files, skills: dict[str, dict], units: dict, errors: list
     return covered
 
 
+def giveaways(files) -> list[str]:
+    """Item ids whose correct option is conspicuously longer than every distractor (advisory)."""
+    flagged = []
+    for qf in files:
+        for item in qf.items:
+            if not isinstance(item, dict) or item.get("type") == "ordering":
+                continue
+            options = [o for o in item.get("options") or [] if isinstance(o, dict)]
+            keys = [len(str(o.get("text", ""))) for o in options if o.get("correct") is True]
+            others = [len(str(o.get("text", ""))) for o in options if o.get("correct") is not True]
+            if len(keys) == 1 and others and keys[0] > GIVEAWAY_RATIO * max(others):
+                flagged.append(str(item.get("id")))
+    return flagged
+
+
 def validate(content_dir: Path) -> tuple[list[str], list[str]]:
     """Return (errors, coverage report lines)."""
     errors: list[str] = []
@@ -314,6 +330,9 @@ def validate(content_dir: Path) -> tuple[list[str], list[str]]:
         f"units: {len(unit_ids)} written, covering {len(with_units & set(planned))} of {len(planned)} "
         "skills with planned units"
     )
+    flagged = giveaways(questions)
+    if flagged:
+        report.append(f"advisory — key more than {GIVEAWAY_RATIO}x the longest distractor: {' '.join(flagged)}")
     return errors, report
 
 

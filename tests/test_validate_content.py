@@ -177,3 +177,13 @@ def test_later_stage_items_must_cite_sources(content):
     edit_yaml(content / Q, to_p1)
     (content / Q).rename(content / "questions" / "P1.yaml")
     assert any("`sources` is empty" in e for e in errors_for(content))
+
+
+def test_long_key_is_flagged_but_not_an_error(content):
+    def lengthen(d):
+        d["items"][0]["options"][0]["text"] = "WHERE, which filters the rows before any grouping or ordering happens"
+
+    edit_yaml(content / Q, lengthen)
+    errors, report = validate(content)
+    assert errors == []
+    assert any("advisory" in line and "F1-A-01" in line for line in report)
