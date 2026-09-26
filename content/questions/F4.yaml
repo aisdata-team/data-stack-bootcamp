@@ -1,0 +1,165 @@
+# F4 · Docker, compose and the VM — Stage 0 diagnostic bank.
+# Forms A and B are parallel: item 1 = images vs containers,
+# item 2 = reading a compose file (networking), item 3 = diagnosing a service
+# from its status and logs. Deliberately does NOT test when to restart vs
+# recreate vs rebuild — that is skill O2.
+skill: F4
+confidence:
+  A:
+    - "I could explain to a colleague the difference between a Docker image and a container."
+    - "I could show the most recent log lines of one service in a compose stack and keep watching new ones arrive."
+  B:
+    - "I could read a compose file and say which port on the machine reaches which service."
+    - "I could tell from `docker compose ps` output which service has stopped and whether it failed."
+items:
+  - id: F4-A-01
+    pool: A
+    unit: null
+    type: mcq
+    stem: "What is the relationship between a Docker image and a container?"
+    artifact: null
+    options:
+      - text: "An image is a read-only template; a container is a running (or stopped) instance created from it, and one image can start many containers."
+        correct: true
+        rationale: "Like a program file and the processes started from it, the image is the blueprint and each container is one instance."
+      - text: "They are the same thing; 'container' is just the newer name for 'image'."
+        correct: false
+        rationale: "They are distinct: you pull or build images, and you run, stop and remove containers."
+      - text: "A container is the file you download, and an image is the copy of it that is running."
+        correct: false
+        rationale: "This has them reversed: you pull an image, and running it creates a container."
+      - text: "An image is a full virtual machine with its own kernel, and a container is a folder inside it."
+        correct: false
+        rationale: "Containers share the host's kernel; neither an image nor a container is a virtual machine."
+    sources: []
+  - id: F4-A-02
+    pool: A
+    unit: null
+    type: artifact
+    stem: "With this compose file running on the VM, which address on the VM itself reaches the webserver?"
+    artifact: |
+      services:
+        webserver:
+          image: example/pipeline-app:1.4
+          ports:
+            - "8080:3000"
+          depends_on:
+            - postgres
+        postgres:
+          image: postgres:16
+          volumes:
+            - pgdata:/var/lib/postgresql/data
+      volumes:
+        pgdata:
+    options:
+      - text: "http://localhost:8080"
+        correct: true
+        rationale: "A ports entry is HOST:CONTAINER, so port 8080 on the VM forwards to port 3000 inside the container."
+      - text: "http://localhost:3000"
+        correct: false
+        rationale: "3000 is the port inside the container; the mapping publishes it on the VM as 8080."
+      - text: "http://webserver:3000"
+        correct: false
+        rationale: "Service names resolve only on the compose network, for other containers; the VM itself cannot look up webserver."
+      - text: "It cannot be reached from the VM, because it depends_on postgres."
+        correct: false
+        rationale: "depends_on only controls start-up order; it has nothing to do with whether a port is reachable."
+    sources: []
+  - id: F4-A-03
+    pool: A
+    unit: null
+    type: mcq
+    stem: "The webserver service in a compose stack keeps failing. Which command shows its most recent 100 log lines and keeps printing new ones as they arrive?"
+    artifact: null
+    options:
+      - text: "docker compose logs --tail 100 -f webserver"
+        correct: true
+        rationale: "--tail 100 starts from the last 100 lines, -f follows new output, and the service name limits it to one service."
+      - text: "docker compose logs webserver | head -n 100"
+        correct: false
+        rationale: "head keeps the first, oldest 100 lines of the log, and it does not follow new output."
+      - text: "docker compose ps webserver"
+        correct: false
+        rationale: "ps shows the container's status (up, exited, restarting), not what it logged."
+      - text: "tail -f webserver.log"
+        correct: false
+        rationale: "Container output is captured by Docker, not written to a webserver.log file in your current directory."
+    sources:
+      - {repo: orchestration, path: CLAUDE.md, commit: ea713797fe70d68779f9116577dda81dddcc4e6f}
+  - id: F4-B-01
+    pool: B
+    unit: null
+    type: mcq
+    stem: "You remove a container and start a new one from the same image. What happens to a file you created inside the old container (not in a volume or mounted folder)?"
+    artifact: null
+    options:
+      - text: "It is gone: the new container starts from the unchanged image."
+        correct: true
+        rationale: "Changes inside a container live in that container's own writable layer, which is deleted with it; the image is never modified."
+      - text: "It is in the new container, because both come from the same image."
+        correct: false
+        rationale: "Running a container never writes back into its image, so the image does not contain the file."
+      - text: "It was saved into the image when the old container stopped."
+        correct: false
+        rationale: "Images do not change when containers stop; you have to build a new image to change one."
+      - text: "It was moved to your home directory on the host when the container was removed."
+        correct: false
+        rationale: "Docker copies nothing out on removal; only volumes or mounted folders keep data outside the container."
+    sources: []
+  - id: F4-B-02
+    pool: B
+    unit: null
+    type: artifact
+    stem: "Code running inside the webserver container needs to connect to the database. Which host and port should it use?"
+    artifact: |
+      services:
+        webserver:
+          image: example/pipeline-app:1.4
+          ports:
+            - "8080:3000"
+          depends_on:
+            - postgres
+        postgres:
+          image: postgres:16
+          volumes:
+            - pgdata:/var/lib/postgresql/data
+      volumes:
+        pgdata:
+    options:
+      - text: "postgres:5432"
+        correct: true
+        rationale: "Compose puts both services on one network where each service name works as a hostname, and 5432 is Postgres's own port."
+      - text: "localhost:5432"
+        correct: false
+        rationale: "Inside a container, localhost means that same container, and the database is not running in the webserver container."
+      - text: "localhost:8080"
+        correct: false
+        rationale: "8080 is the webserver's port published on the VM, not the database."
+      - text: "It cannot connect, because postgres has no ports entry."
+        correct: false
+        rationale: "A ports entry only publishes a port to the host; containers on the same compose network reach each other without one."
+    sources: []
+  - id: F4-B-03
+    pool: B
+    unit: null
+    type: artifact
+    stem: "What does this output tell you, and what is the best next step?"
+    artifact: |
+      $ docker compose ps -a        (COMMAND and CREATED columns trimmed)
+      NAME                IMAGE                      SERVICE     STATUS                     PORTS
+      stack-postgres-1    postgres:16                postgres    Up 2 hours                 5432/tcp
+      stack-webserver-1   example/pipeline-app:1.4   webserver   Exited (1) 3 minutes ago
+    options:
+      - text: "The webserver crashed (exit code 1); read its logs before restarting it."
+        correct: true
+        rationale: "A non-zero exit code means failure, and `docker compose logs webserver` usually holds the error that caused it, so read it before starting the service again."
+      - text: "The webserver finished its work successfully; nothing needs doing."
+        correct: false
+        rationale: "Exit code 0 means success; 1 means the process failed, and a webserver is meant to keep running."
+      - text: "Postgres is broken because port 5432 is not mapped to the host."
+        correct: false
+        rationale: "5432/tcp means the port is open to other containers but not published to the host, which is normal; postgres is Up."
+      - text: "The webserver is paused; run `docker compose unpause webserver`."
+        correct: false
+        rationale: "A paused container still shows Up, marked (Paused); Exited means its main process ended."
+    sources: []

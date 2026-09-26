@@ -1,0 +1,250 @@
+# P1 — The stack end to end: sources → dlt → BigQuery → dbt → marts → dashboards; what runs where.
+# Forms A and B are parallel: (01) what runs where for one moving part, (02) an artifact about
+# where data or state physically lives, (03) the order data travels from source to dashboard.
+skill: P1
+confidence:
+  A:
+    - "I could say which container on the VM runs the nightly dlt syncs and name the BigQuery datasets they load into."
+    - "I could name the BigQuery project that prod mart tables land in, and the one that holds the raw, staging and intermediate tables."
+  B:
+    - "I could explain where the dbt code the nightly run builds comes from, and why a change merged to main shows up the next night."
+    - "I could tell a colleague what the Postgres database on the VM stores, and what it does not store."
+items:
+  - id: P1-A-01
+    pool: A
+    unit: null
+    type: mcq
+    stem: "The nightly run pulls MARIO, Veracross, Toddle and ManageBac data through dlt pipelines. Where do those syncs run, and where do they write?"
+    artifact: null
+    options:
+      - text: "In-process inside the dagster-orchestration container on the VM, loading straight into BigQuery's data_import_dlt_* datasets"
+        correct: true
+        rationale: "The README and the AIS Warehouse page both say the dlt rest_api pipelines run inside the orchestration container, with no separate extract service, and load directly to data_import_dlt_*."
+      - text: "In a separate Airbyte service on the VM, which syncs the sources on its own schedule"
+        correct: false
+        rationale: "Airbyte did this once, but it was fully decommissioned on 2026-06-29 and dlt replaced it."
+      - text: "In dbt Cloud, which pulls the source APIs before it builds the models"
+        correct: false
+        rationale: "dbt Cloud is the interactive development surface for the dbt project; it neither extracts nor loads source data."
+      - text: "On the VM, writing CSV files to GCS for dbt to load the next night"
+        correct: false
+        rationale: "dlt loads BigQuery tables directly; CSV drops into GCS are how the Veracross Data Packages and the NWEA import arrive, not the dlt syncs."
+    sources:
+      - {repo: orchestration, path: README.md, commit: ea713797fe70d68779f9116577dda81dddcc4e6f}
+      - {repo: orchestration, path: docs/pipelines/ais-warehouse.md, commit: ea713797fe70d68779f9116577dda81dddcc4e6f}
+  - id: P1-A-02
+    pool: A
+    unit: null
+    type: artifact
+    stem: "This is an excerpt of the warehouse's dbt_project.yml. When the nightly build runs with `--target prod`, where do the tables end up?"
+    artifact: |
+      models:
+        ais_data_warehouse:
+          +database: 'ais-data-warehouse'
+          staging:
+            +schema: staging
+          intermediate:
+            +schema: intermediate
+          mart:
+            +database: "{{ 'ais-data-warehouse' if target.name == 'dev' else 'ais-data-mart' }}"
+    options:
+      - text: "Mart tables land in the ais-data-mart project; staging and intermediate stay in ais-data-warehouse"
+        correct: true
+        rationale: "Only the mart folder overrides +database, and it picks ais-data-mart for any target other than dev; everything else inherits ais-data-warehouse."
+      - text: "Everything, staging and intermediate included, lands in ais-data-mart"
+        correct: false
+        rationale: "The ais-data-mart override is set on the mart folder only; the project-level +database is ais-data-warehouse."
+      - text: "Everything lands in ais-data-warehouse, because that is the project named in the dbt profile"
+        correct: false
+        rationale: "The profile's project is only the default/billing project; the per-model database config routes prod marts to ais-data-mart, which is why the profile and the landing project differ."
+      - text: "Mart tables land in ais-goo-gle-mart alongside the other dashboards' data"
+        correct: false
+        rationale: "ais-goo-gle-mart belongs to the separate Google Workspace pipeline, not to this dbt project."
+    sources:
+      - {repo: warehouse, path: dbt_project.yml, commit: 9efbb8b979e3be90ded565726fba8da7597fd115}
+      - {repo: warehouse, path: README.md, commit: 9efbb8b979e3be90ded565726fba8da7597fd115}
+      - {repo: orchestration, path: docs/pipelines/ais-warehouse.md, commit: ea713797fe70d68779f9116577dda81dddcc4e6f}
+  - id: P1-A-03
+    pool: A
+    unit: null
+    type: ordering
+    stem: "Put the stages a Veracross API record passes through, from the source system to a Looker Studio dashboard, in order."
+    artifact: null
+    steps:
+      - text: "A dlt sync pulls the record from the Veracross API"
+        rationale: "Extract and load is the first step: the Veracross dlt op runs inside the nightly Dagster run."
+      - text: "The record lands in a raw BigQuery table in data_import_dlt_vx"
+        rationale: "dlt loads directly into the data_import_dlt_* datasets, which is what dbt reads."
+      - text: "A dbt staging model renames and types its columns"
+        rationale: "Staging is the first dbt layer: it cleans and lightly types the raw source tables."
+      - text: "Intermediate models join and shape it into dimensions, facts and one-big-table models"
+        rationale: "Intermediate is where joins and business logic live, before anything is served."
+      - text: "A mart table serves it, and the Looker Studio dashboard queries that mart"
+        rationale: "Dashboards query the mart tier in BigQuery directly; the mart is the end of the dbt DAG."
+    sources:
+      - {repo: orchestration, path: docs/pipelines/ais-warehouse.md, commit: ea713797fe70d68779f9116577dda81dddcc4e6f}
+      - {repo: warehouse, path: README.md, commit: 9efbb8b979e3be90ded565726fba8da7597fd115}
+  - id: P1-B-01
+    pool: B
+    unit: null
+    type: mcq
+    stem: "The nightly run builds the warehouse's dbt models on the VM. Where does the dbt code it builds come from?"
+    artifact: null
+    options:
+      - text: "The job clones the warehouse repo's main branch fresh at run time, so whatever is on main that night is what builds"
+        correct: true
+        rationale: "The runtime clone (git_pull_main) fetches the current tip of main each night, which is why a change pushed from dbt Cloud to main is picked up with no rebuild."
+      - text: "It is copied into the orchestration repo's dagster/dbt/ folder and baked into the container image"
+        correct: false
+        rationale: "dagster/dbt/ holds only a stub dbt_project.yml to satisfy a load-time check; it is not used at runtime."
+      - text: "dbt Cloud runs the prod build, and Dagster only waits for it to finish"
+        correct: false
+        rationale: "dbt Cloud is the development surface; the prod build is dbt-core run by Dagster against the runtime clone."
+      - text: "It comes from a git submodule pinned to a warehouse commit, bumped when a release is ready"
+        correct: false
+        rationale: "The submodule was removed in favour of the runtime clone; there is no pinned commit to bump."
+    sources:
+      - {repo: orchestration, path: README.md, commit: ea713797fe70d68779f9116577dda81dddcc4e6f}
+      - {repo: orchestration, path: docs/orchestration-reference.md, commit: ea713797fe70d68779f9116577dda81dddcc4e6f}
+      - {repo: warehouse, path: README.md, commit: 9efbb8b979e3be90ded565726fba8da7597fd115}
+  - id: P1-B-02
+    pool: B
+    unit: null
+    type: artifact
+    stem: "This is an excerpt of the architecture diagram in the orchestration README. A colleague says, 'the warehouse data lives in the Postgres on the VM.' What is that Postgres actually for?"
+    artifact: |
+      │  ┌─────────────────┐                     │
+      │  │     Dagster     │                     │
+      │  │  Orchestration  │                     │
+      │  │   (gRPC + UI    │                     │
+      │  │   + daemon;     │                     │
+      │  │   runs the dlt  │                     │
+      │  │   rest_api      │                     │
+      │  │   syncs         │                     │
+      │  │   in-process)   │                     │
+      │  └────────┬────────┘                     │
+      │           ▼                              │
+      │  ┌─────────────────┐                     │
+      │  │  Postgres       │                     │
+      │  │  (Dagster       │                     │
+      │  │   run/event     │                     │
+      │  │   storage)      │                     │
+      │  └─────────────────┘                     │
+      └────────────────────┬─────────────────────┘
+                           ▼
+                   ┌────────────────┐
+                   │    BigQuery    │
+                   │  - raw         │
+                   │  - staging     │
+                   │  - intermediate│
+                   │  - mart        │
+                   └────────────────┘
+    options:
+      - text: "Dagster's own records: runs, events and schedule state. The warehouse data itself is in BigQuery"
+        correct: true
+        rationale: "The diagram labels Postgres as Dagster run/event storage, and puts raw, staging, intermediate and mart in BigQuery, outside the VM."
+      - text: "It holds the raw dlt landing tables until dbt copies them into BigQuery"
+        correct: false
+        rationale: "dlt loads directly into BigQuery; nothing stops in Postgres on the way."
+      - text: "It is dbt's staging layer, and only the marts are in BigQuery"
+        correct: false
+        rationale: "The diagram lists staging as a BigQuery tier alongside raw, intermediate and mart."
+      - text: "It was Airbyte's database and is no longer used"
+        correct: false
+        rationale: "Airbyte had its own Postgres, which was removed with it; this Postgres is Dagster's and is in use every night."
+    sources:
+      - {repo: orchestration, path: README.md, commit: ea713797fe70d68779f9116577dda81dddcc4e6f}
+      - {repo: orchestration, path: docs/orchestration-reference.md, commit: ea713797fe70d68779f9116577dda81dddcc4e6f}
+  - id: P1-B-03
+    pool: B
+    unit: null
+    type: ordering
+    stem: "Put the stages a Veracross Data Packages record passes through, from the source system to a Looker Studio dashboard, in order."
+    artifact: null
+    steps:
+      - text: "Veracross's nightly Data Packages export drops CSV files into gs://ais_data_import/data_import_vx/"
+        rationale: "The Data Packages are a scheduled export from Veracross to GCS, so they need no extract step."
+      - text: "BigQuery reads those files as external tables in the data_import_vx dataset"
+        rationale: "The CSVs are exposed to BigQuery as external tables; dbt reads them as sources from there."
+      - text: "A dbt staging model (stg_vx__*) renames and casts the columns"
+        rationale: "Staging maps to a source table one to one, renaming columns and casting types."
+      - text: "Intermediate models join it into dimensions, facts and one-big-table models"
+        rationale: "Intermediate is where joins and business logic live."
+      - text: "A mart table in ais-data-mart serves it, and the Looker Studio dashboard queries that mart"
+        rationale: "Prod marts materialize in ais-data-mart, and dashboards query the mart tier directly."
+    sources:
+      - {repo: orchestration, path: docs/pipelines/ais-warehouse.md, commit: ea713797fe70d68779f9116577dda81dddcc4e6f}
+      - {repo: warehouse, path: README.md, commit: 9efbb8b979e3be90ded565726fba8da7597fd115}
+  # --- unit checks (pool: unit) ---
+  - id: P1-U-01
+    pool: unit
+    unit: P1-01
+    type: mcq
+    stem: Most pipelines in this stack start when a file arrives in Cloud Storage. Which one runs at a fixed time instead, every night at 2 AM Eastern?
+    artifact: null
+    options:
+    - text: Google Workspace
+      correct: true
+      rationale: The README's data-flow table lists its trigger as Cron (2 AM Eastern); its upstream is a BigQuery-native export, so there is no GCS drop to wait for.
+    - text: AIS Warehouse
+      correct: false
+      rationale: The main pipeline is triggered by GCS arrival under data_import_vx/, not by a clock.
+    - text: IBDP results parsing
+      correct: false
+      rationale: It fires when IB results PDFs are uploaded to ibdp_pdf_files/ in GCS.
+    - text: HubSpot mart push
+      correct: false
+      rationale: It fires on BigQuery batch freshness, once all the mart_hubspot tables have refreshed, not at a set time.
+    sources:
+    - repo: orchestration
+      path: README.md
+      commit: ea713797fe70d68779f9116577dda81dddcc4e6f
+  - id: P1-U-02
+    pool: unit
+    unit: P1-01
+    type: mcq
+    stem: What starts the main AIS Warehouse pipeline each night?
+    artifact: null
+    options:
+    - text: The night's whole Veracross Data Packages batch landing under data_import_vx/
+      correct: true
+      rationale: The README's data-flow table lists its trigger as GCS arrival (data_import_vx/*), and its sensor fires only once every file there has refreshed for the night, i.e. the whole batch has landed.
+    - text: The first Veracross Data Packages file of the night landing under data_import_vx/
+      correct: false
+      rationale: The sensor waits for every file in the batch; a partial upload, where only some tables have refreshed, does not start a run.
+    - text: The HubSpot mart push finishing its nightly sync to the CRM
+      correct: false
+      rationale: The HubSpot push runs after the warehouse build, on the marts it produces; it does not start it.
+    - text: An operator starting it by hand from the Dagster UI each night
+      correct: false
+      rationale: Manual runs are possible, but the nightly run is file-driven.
+    sources:
+    - repo: orchestration
+      path: README.md
+      commit: ea713797fe70d68779f9116577dda81dddcc4e6f
+    - repo: orchestration
+      path: docs/orchestration-reference.md
+      commit: ea713797fe70d68779f9116577dda81dddcc4e6f
+  - id: P1-U-03
+    pool: unit
+    unit: P1-01
+    type: mcq
+    stem: In risk ORCH-73, a push to the CRM fired while the mart layer was still being rebuilt. What did the CRM receive?
+    artifact: null
+    options:
+    - text: A mix of tables from that night's build and older ones
+      correct: true
+      rationale: 'The register records a half-rebuilt mart: some tables new, at least one about 18 hours stale.'
+    - text: Nothing; the push failed with an error
+      correct: false
+      rationale: Nothing failed, which is why an operator only found it by reading the sensor ticks.
+    - text: The previous night's complete mart
+      correct: false
+      rationale: It read the mart mid-write, so it was neither complete nor consistently old.
+    - text: Only the tables that had already finished rebuilding
+      correct: false
+      rationale: It pushed the mart as it stood, finished or not; at least one table was about 18 hours stale.
+    sources:
+    - repo: orchestration
+      path: docs/risk-register.md
+      commit: ea713797fe70d68779f9116577dda81dddcc4e6f

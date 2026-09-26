@@ -3,6 +3,27 @@
 The course's decision record: one file, newest entries first, dated headings that never move.
 An entry holds the decision, the why in about 5 lines, and a `Revisit if`.
 
+## 2026-09-26 (c) — Question banks are reviewed by an agent that did not write them, and a long answer key is flagged
+
+**Decision.**
+- **Agent-drafted items reach a PR only after an independent review** by a fresh agent that did
+  not write them. The reviewer checks, per item, that the key is right against its pinned
+  sources, that no second option can be defended, that the key is not given away, and that
+  forms A and B are parallel.
+- **`validate_content.py` flags any item whose correct option is more than 1.5× the length of
+  its longest distractor.** The flag is advisory and never fails the build.
+
+**Why.**
+- In the first review the keys were all correct, but the correct option was conspicuously the
+  longest in 45 of 78 items. It also found seven items with a second defensible answer, and
+  four unit checks that duplicated diagnostic items.
+- A self-review shares the author's blind spots — the correlated-reasoning half of ORCH-102,
+  which a diagnostic built to measure people can't afford.
+- The length flag is advisory because a precise key is sometimes necessarily longer.
+
+**Revisit if** a later review finds nothing across a whole stage. The flag can then carry the
+check alone and the full independent review can become spot checks.
+
 ## 2026-09-26 (b) — Release 0 scaffolding: the item schema, the placement thresholds, and a drift check that fails closed
 
 **Decision.**

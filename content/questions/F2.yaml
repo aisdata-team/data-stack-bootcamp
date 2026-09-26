@@ -1,0 +1,139 @@
+# F2 · The command line — Stage 0 diagnostic bank.
+# Forms A and B are parallel: item 1 = navigating with relative paths,
+# item 2 = reading and fixing file permissions from `ls -l`,
+# item 3 = combining commands with a pipe to search a log.
+skill: F2
+confidence:
+  A:
+    - "I could move up one directory and then into a sibling directory without typing a full path."
+    - "I could read a line of `ls -l` output and say who can read, write or run that file."
+  B:
+    - "I could make a file readable and writable by its owner only."
+    - "I could count how many lines of a log file mention a given word, using a pipe."
+items:
+  - id: F2-A-01
+    pool: A
+    unit: null
+    type: mcq
+    stem: "Your current directory is /home/dev/project/dagster. Which command takes you to /home/dev/project?"
+    artifact: null
+    options:
+      - text: "cd .."
+        correct: true
+        rationale: "`..` always means the parent of the current directory."
+      - text: "cd ~"
+        correct: false
+        rationale: "`~` is your home directory (/home/dev here), which is two levels up, not one."
+      - text: "cd /"
+        correct: false
+        rationale: "`/` is the root of the whole filesystem, not the parent directory."
+      - text: "cd -"
+        correct: false
+        rationale: "`cd -` returns to whichever directory you were in before, which need not be the parent."
+    sources: []
+  - id: F2-A-02
+    pool: A
+    unit: null
+    type: artifact
+    stem: "Why does running the script fail, and which command fixes it?"
+    artifact: |
+      dev@vm:~/project$ ls -l scripts/cleanup.sh
+      -rw-r--r-- 1 dev dev 1204 Sep 20 09:14 scripts/cleanup.sh
+      dev@vm:~/project$ ./scripts/cleanup.sh
+      bash: ./scripts/cleanup.sh: Permission denied
+    options:
+      - text: "No one may execute it; `chmod 744 scripts/cleanup.sh` fixes it."
+        correct: true
+        rationale: "rw-r--r-- has no x anywhere, and a file must be executable to be run as ./file; 744 is rwxr--r--, which adds execute for the owner (dev) and changes nothing else."
+      - text: "Root owns it; `sudo chown dev scripts/cleanup.sh` fixes it."
+        correct: false
+        rationale: "The third and fourth columns show the owner and group are already dev, the user in the prompt; changing the owner adds no x permission."
+      - text: "Only its owner may read it; `chmod 644 scripts/cleanup.sh` fixes it."
+        correct: false
+        rationale: "r-- appears for group and others too, so everyone can already read it; and 644 is rw-r--r--, exactly the permissions it has now, still with no x."
+      - text: "The group cannot write it; `chmod 664 scripts/cleanup.sh` fixes it."
+        correct: false
+        rationale: "Write permission has nothing to do with running a file, and 664 (rw-rw-r--) still has no x, so it would still be denied."
+    sources: []
+  - id: F2-A-03
+    pool: A
+    unit: null
+    type: mcq
+    stem: "Which command shows only the lines containing ERROR from the last 500 lines of app.log?"
+    artifact: null
+    options:
+      - text: "tail -n 500 app.log | grep ERROR"
+        correct: true
+        rationale: "tail takes the last 500 lines, and the pipe hands them to grep, which keeps only the matches."
+      - text: "cat app.log | grep ERROR | head -n 500"
+        correct: false
+        rationale: "This keeps the first 500 matches in the whole file, starting from the oldest, not matches within the last 500 lines."
+      - text: "tail -n 500 app.log > grep ERROR"
+        correct: false
+        rationale: "`>` writes output to a file (here one named grep); it does not send it into a command."
+      - text: "grep ERROR | tail -n 500 app.log"
+        correct: false
+        rationale: "The order is backwards: this grep has no file and waits on the keyboard, while tail ignores the pipe because it was given a file."
+    sources: []
+  - id: F2-B-01
+    pool: B
+    unit: null
+    type: mcq
+    stem: "Your current directory is /home/dev/project. Which path refers to the file /home/dev/notes.txt?"
+    artifact: null
+    options:
+      - text: "../notes.txt"
+        correct: true
+        rationale: "`..` is the parent (/home/dev), so ../notes.txt is /home/dev/notes.txt."
+      - text: "./notes.txt"
+        correct: false
+        rationale: "`.` is the current directory, so this is /home/dev/project/notes.txt."
+      - text: "/notes.txt"
+        correct: false
+        rationale: "A leading `/` starts from the filesystem root, so this is a file at the very top of the disk."
+      - text: "~/project/notes.txt"
+        correct: false
+        rationale: "`~` is /home/dev, so this points back inside the project directory."
+    sources: []
+  - id: F2-B-02
+    pool: B
+    unit: null
+    type: artifact
+    stem: "This file holds passwords. What is wrong with it, and which command fixes it?"
+    artifact: |
+      dev@vm:~/project$ ls -l .env
+      -rw-rw-r-- 1 dev dev 812 Sep 20 09:14 .env
+    options:
+      - text: "Every user can read it; `chmod 600 .env` fixes that."
+        correct: true
+        rationale: "The last r is 'others', meaning everyone; 600 is rw------- , which leaves read and write for the owner only and nothing for group or others."
+      - text: "Nothing is wrong: only dev can read it."
+        correct: false
+        rationale: "The permission string has three groups (owner, group, others), and both the group and others have r."
+      - text: "Every user can read it; `chmod 644 .env` fixes that."
+        correct: false
+        rationale: "644 is rw-r--r--, which still lets everyone read the file."
+      - text: "The group can write it; `chmod 777 .env` fixes that."
+        correct: false
+        rationale: "777 gives everyone read, write and execute, so it makes the problem worse."
+    sources: []
+  - id: F2-B-03
+    pool: B
+    unit: null
+    type: mcq
+    stem: "Which command prints how many lines in app.log contain the word timeout?"
+    artifact: null
+    options:
+      - text: "grep timeout app.log | wc -l"
+        correct: true
+        rationale: "grep keeps the matching lines, and the pipe hands them to `wc -l`, which counts them."
+      - text: "wc -l app.log | grep timeout"
+        correct: false
+        rationale: "The order is backwards: wc prints one line with the total and the file name, and grep then searches that line."
+      - text: "cat app.log | wc -l"
+        correct: false
+        rationale: "This counts every line in the file, not only the matching ones."
+      - text: "grep timeout app.log > wc"
+        correct: false
+        rationale: "`>` writes the matching lines into a file named wc; it does not run the wc command."
+    sources: []

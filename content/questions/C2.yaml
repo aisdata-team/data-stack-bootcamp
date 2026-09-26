@@ -1,0 +1,233 @@
+# C2 · Asking the repo with Claude Code — diagnostic bank (forms A and B).
+# Facts are drawn from orchestration@ea713797fe70d68779f9116577dda81dddcc4e6f and
+# warehouse@9efbb8b979e3be90ded565726fba8da7597fd115.
+skill: C2
+confidence:
+  A:
+    - "I could pick which repo skill to run for 'what should we work on next' and which for 'how healthy is the project', and say which of them edit anything."
+    - "I could check a Claude Code answer by opening the file it cites and finding the sentence that supports each claim."
+  B:
+    - "I could spot when an answer from Claude Code gives no file I can check, and ask for the file and section before using it."
+    - "I could explain to a colleague why an answer from Claude Code is a lead to verify, not a result to forward."
+items:
+  - id: C2-A-01
+    pool: A
+    unit: null
+    type: mcq
+    stem: "A colleague asks, 'What should we work on next across the whole data stack?' Which skill in the orchestration repo's `.claude/skills/` is built for that question?"
+    artifact: null
+    options:
+      - text: "/next-steps"
+        correct: true
+        rationale: "It reads the register, the roadmap, the genBI roadmap and recent DECISIONS entries and ranks with the roadmap's risk-gate then value-per-effort rule."
+      - text: "/project-analysis"
+        correct: false
+        rationale: "It reports architecture, robustness and documentation findings against the known baseline; it does not rank the backlog."
+      - text: "/risk-analysis"
+        correct: false
+        rationale: "It sweeps for risks and edits the register; ranking what to do next is /next-steps' job."
+      - text: "/hubspot-next-steps"
+        correct: false
+        rationale: "It ranks only within the HubSpot integration; its own description points whole-stack ranking to /next-steps."
+    sources:
+      - {repo: orchestration, path: .claude/skills/next-steps/SKILL.md, commit: ea713797fe70d68779f9116577dda81dddcc4e6f}
+      - {repo: orchestration, path: .claude/skills/project-analysis/SKILL.md, commit: ea713797fe70d68779f9116577dda81dddcc4e6f}
+      - {repo: orchestration, path: .claude/skills/risk-analysis/SKILL.md, commit: ea713797fe70d68779f9116577dda81dddcc4e6f}
+      - {repo: orchestration, path: .claude/skills/hubspot-next-steps/SKILL.md, commit: ea713797fe70d68779f9116577dda81dddcc4e6f}
+  - id: C2-A-02
+    pool: A
+    unit: null
+    type: artifact
+    stem: "Claude Code gave the answer below and cited a file. You opened the file and found the excerpt shown. What do you do with the answer?"
+    artifact: |
+      Claude Code's answer:
+        "The anonymization salt is kept in dbt Cloud, so dev and prod builds produce
+         the same pseudonyms. (Source: warehouse macros/anonymization_keys.sql)"
+
+      The cited file, header comment (excerpt):
+        The salt is a Secret Manager secret (`ais-dbt-anon-salt`) exposed to the *prod*
+        dbt Core run (Dagster on the VM) as the env var DBT_ANON_SALT [...] It is NOT
+        stored in dbt Cloud (dev-only) and NOT committed to this repo, so it is
+        unreadable from BigQuery *and* from the repo.
+    options:
+      - text: "Reject it: the cited file contradicts the claim, so it is not passed on as an answer"
+        correct: true
+        rationale: "The file says the salt lives in Secret Manager for the prod run and is not in dbt Cloud; a claim its own source contradicts is wrong."
+      - text: "Accept it, because it cites a file"
+        correct: false
+        rationale: "A citation is only worth the text at that path; opening the file is the check, and here the check fails."
+      - text: "Accept the second half: dev and prod do produce the same pseudonyms"
+        correct: false
+        rationale: "Non-prod targets default to an empty salt while prod uses the secret, so their pseudonyms differ."
+      - text: "Trust the answer over the file, since Claude Code may know something newer"
+        correct: false
+        rationale: "The file at the pinned commit is the record; a claim that cannot be pointed to in it is not yet an answer."
+    sources:
+      - {repo: warehouse, path: macros/anonymization_keys.sql, commit: 9efbb8b979e3be90ded565726fba8da7597fd115}
+  - id: C2-A-03
+    pool: A
+    unit: null
+    type: mcq
+    stem: "Claude Code built the ledger digest (`scripts/ledger-digest.py`) and tells you RM-162's status from it. You want to quote that status to a colleague and then update the row. What does CLAUDE.md say to do?"
+    artifact: null
+    options:
+      - text: "Rank from the digest, but quote and edit from RM-162's row in ROADMAP.md"
+        correct: true
+        rationale: "CLAUDE.md says to rank from the digest, open the source (planning/ROADMAP.md) by heading for the items you act on, and never write back from the digest, because it is lossy."
+      - text: "Quote and edit from the digest; it is generated from the source, so it says the same thing"
+        correct: false
+        rationale: "The digest is lossy by design, so a quote or a write-back from it can drop what the source says."
+      - text: "Have Claude Code read ROADMAP.md and the register in full instead"
+        correct: false
+        rationale: "Together they exceed a context window; a headless run that read them whole published nothing."
+      - text: "Ask Claude Code to restate the status more carefully and use that"
+        correct: false
+        rationale: "A second paraphrase is still not the source; the check is opening the roadmap row itself."
+    sources:
+      - {repo: orchestration, path: CLAUDE.md, commit: ea713797fe70d68779f9116577dda81dddcc4e6f}
+  - id: C2-B-01
+    pool: B
+    unit: null
+    type: mcq
+    stem: "You want a routine health check of the orchestration project that changes nothing and reports only what is new compared with the register and the roadmap. Which skill fits?"
+    artifact: null
+    options:
+      - text: "/project-analysis"
+        correct: true
+        rationale: "It is read-only and delta-aware: it reports changes against the register and roadmap and makes no code changes."
+      - text: "/project-analysis-full"
+        correct: false
+        rationale: "It reports the complete picture, known items included; its description says to prefer the cheaper delta-aware skill for routine checks."
+      - text: "/risk-analysis"
+        correct: false
+        rationale: "It edits the register — adding, re-scoring and resolving risks — so it does not leave everything unchanged."
+      - text: "/next-steps"
+        correct: false
+        rationale: "It ranks the backlog to recommend what to do next; it is not an architecture or documentation health check."
+    sources:
+      - {repo: orchestration, path: .claude/skills/project-analysis/SKILL.md, commit: ea713797fe70d68779f9116577dda81dddcc4e6f}
+      - {repo: orchestration, path: .claude/skills/project-analysis-full/SKILL.md, commit: ea713797fe70d68779f9116577dda81dddcc4e6f}
+      - {repo: orchestration, path: .claude/skills/risk-analysis/SKILL.md, commit: ea713797fe70d68779f9116577dda81dddcc4e6f}
+      - {repo: orchestration, path: .claude/skills/next-steps/SKILL.md, commit: ea713797fe70d68779f9116577dda81dddcc4e6f}
+  - id: C2-B-02
+    pool: B
+    unit: null
+    type: artifact
+    stem: "Claude Code gave the answer below and cited the register. You opened the file and found the row shown. What is the correct reading?"
+    artifact: |
+      Claude Code's answer:
+        "ORCH-102 is a High risk with a residual score of 12. (Source: docs/risk-register.md)"
+
+      The cited file, Register table (header and ORCH-102's row, risk text shortened):
+        | ID | ... | L | S | Inherent | Mitigation Implemented? | Residual L | Residual S | Mitigated |
+        | ORCH-102 | ... | 3 | 4 | 12 | Partial | 2 | 4 | 8 |
+    options:
+      - text: "It quoted the inherent score; the residual score is 8 (Medium)"
+        correct: true
+        rationale: "12 sits in the Inherent column; the residual (Mitigated) score after the implemented controls is 2 × 4 = 8, and the register bands 5–9 as Medium."
+      - text: "The answer is right, because 12 appears in ORCH-102's row"
+        correct: false
+        rationale: "The number is there but in the wrong column; checking a claim means checking what the cited cell actually measures."
+      - text: "Inherent and residual are two names for the same score"
+        correct: false
+        rationale: "The register defines inherent as before mitigation and residual as after the implemented controls only."
+      - text: "It cannot be settled without reading DECISIONS.md"
+        correct: false
+        rationale: "The row states both scores; the cited file is enough to settle this claim."
+    sources:
+      - {repo: orchestration, path: docs/risk-register.md, commit: ea713797fe70d68779f9116577dda81dddcc4e6f}
+  - id: C2-B-03
+    pool: B
+    unit: null
+    type: mcq
+    stem: "Why does this stack treat an answer from Claude Code that names no file you can check as not yet an answer?"
+    artifact: null
+    options:
+      - text: "Because the agent writes the work and its checks; only a reader of the file is independent"
+        correct: true
+        rationale: "ORCH-102 records that the operator is the only independent judgement and that most realised risks were the agent's correlated reasoning shipping with CI green."
+      - text: "Because Claude Code cannot open files in the repos"
+        correct: false
+        rationale: "It can read the repos; the issue is not access but whether a person can verify what it concluded."
+      - text: "Because CI already verifies every claim, so an unsourced answer adds nothing"
+        correct: false
+        rationale: "CI proves code loads, lints and its faked logic holds; no test makes a real external call, and realised risks have shipped with CI green."
+      - text: "Because only answers taken from DECISIONS.md read end to end count"
+        correct: false
+        rationale: "DECISIONS.md is searched with grep and never read end to end; any file at a stated path can be the source."
+    sources:
+      - {repo: orchestration, path: docs/risk-register.md, commit: ea713797fe70d68779f9116577dda81dddcc4e6f}
+      - {repo: orchestration, path: CLAUDE.md, commit: ea713797fe70d68779f9116577dda81dddcc4e6f}
+  # --- unit checks (pool: unit) ---
+  - id: C2-U-01
+    pool: unit
+    unit: C2-01
+    type: mcq
+    stem: Claude Code answers your question confidently and cites a file. What should you do before relying on the answer?
+    artifact: null
+    options:
+    - text: Open the cited file and find the sentence that supports the answer
+      correct: true
+      rationale: A cited file that doesn't say what is claimed is the most common failure.
+    - text: Nothing more; a citation means it has checked
+      correct: false
+      rationale: The citation is a claim too; only reading the file verifies it.
+    - text: Ask Claude Code whether it is sure
+      correct: false
+      rationale: The same reasoning checking itself is exactly what ORCH-102 warns about.
+    - text: Ask a second Claude Code session the same question
+      correct: false
+      rationale: A second session shares the same kind of reasoning, so agreement is not an independent check; only the file verifies the claim.
+    sources:
+    - repo: orchestration
+      path: docs/risk-register.md
+      commit: ea713797fe70d68779f9116577dda81dddcc4e6f
+  - id: C2-U-02
+    pool: unit
+    unit: C2-01
+    type: mcq
+    stem: What may the /next-steps skill change when you run it interactively?
+    artifact: null
+    options:
+    - text: Roadmap bookkeeping only, such as statuses; never the risk register
+      correct: true
+      rationale: Its SKILL.md limits edits to planning/ROADMAP.md bookkeeping (statuses, Shipped moves, ordering corrections) that follows mechanically from the evidence, and says never to edit the register.
+    - text: Nothing at all; it only reports its ranking
+      correct: false
+      rationale: That describes /project-analysis; /next-steps may make mechanical roadmap updates.
+    - text: Anything in the ledger, including the register's risk scores
+      correct: false
+      rationale: Only /risk-analysis edits the register; /next-steps proposes register changes.
+    - text: Only planning/next-steps-latest.md, even when run interactively
+      correct: false
+      rationale: Writing only that artifact is the CI-mode guardrail; run interactively it may also make roadmap bookkeeping edits.
+    sources:
+    - repo: orchestration
+      path: .claude/skills/next-steps/SKILL.md
+      commit: ea713797fe70d68779f9116577dda81dddcc4e6f
+  - id: C2-U-03
+    pool: unit
+    unit: C2-01
+    type: mcq
+    stem: Why can an agent's own tests miss a defect in its own code?
+    artifact: null
+    options:
+    - text: The tests can share the code's wrong assumption
+      correct: true
+      rationale: When the tests encode the same wrong assumption as the code, both agree and CI is green; 21 of the register's 30 realised risks reached production with CI green for this reason (test-intent-review.yml).
+    - text: Agents are not allowed to write tests here
+      correct: false
+      rationale: They do write them; the problem is that the tests share the code's reasoning.
+    - text: CI skips tests that an agent wrote itself
+      correct: false
+      rationale: CI runs every test; a green run just can't catch a shared assumption.
+    - text: The test-intent reviewer never looks at test files
+      correct: false
+      rationale: It reads exactly the test diff, alongside the PR's Requirements section and the changed-file names.
+    sources:
+    - repo: orchestration
+      path: .github/workflows/test-intent-review.yml
+      commit: ea713797fe70d68779f9116577dda81dddcc4e6f
+    - repo: orchestration
+      path: CLAUDE.md
+      commit: ea713797fe70d68779f9116577dda81dddcc4e6f
