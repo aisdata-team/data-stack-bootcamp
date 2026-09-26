@@ -1,0 +1,6 @@
+# Diagnostic answers are data about staff: never committed.
+responses/
+__pycache__/
+.pytest_cache/
+.ruff_cache/
+.venv/

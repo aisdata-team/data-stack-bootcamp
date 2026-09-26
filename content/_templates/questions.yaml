@@ -1,0 +1,95 @@
+# Copy to content/questions/<SKILL>.yaml. One file per skill.
+#
+# Per skill: exactly 2 confidence statements per form, exactly 3 items in pool A
+# (entry diagnostic) and 3 in pool B (exit retake), plus any number of unit-check
+# items (pool: unit). The three pools never share an item.
+#
+# NEVER author an "I don't know" option — the renderer and the app always add it.
+# Options are shown in a shuffled order seeded on the item id, so write the
+# correct one wherever is natural.
+skill: F1
+confidence:                        # concrete can-do statements, rated 1–5
+  A:
+    - "I could write a query that returns only this year's enrolled students from a table."
+    - "I could explain what a WHERE clause does to someone who has never written SQL."
+  B:
+    - "I could filter a table on two conditions at once and get the rows I expected."
+    - "I could tell from a query's WHERE clause which rows it leaves out."
+items:
+  - id: F1-A-01                    # <skill>-<A|B|U>-<nn>
+    pool: A                        # A | B | unit
+    unit: null                     # unit pool only: the unit id this checks
+    type: mcq                      # mcq | artifact | ordering
+    stem: "Which clause keeps only the rows that meet a condition?"
+    artifact: null
+    options:                       # exactly one correct; every option has a rationale
+      - {text: "WHERE", correct: true, rationale: "WHERE filters rows before grouping."}
+      - {text: "ORDER BY", correct: false, rationale: "ORDER BY sorts rows; it never removes any."}
+      - {text: "SELECT", correct: false, rationale: "SELECT chooses columns, not rows."}
+    sources: []                    # stage-0 items may cite nothing; every later stage must
+  - id: F1-A-02
+    pool: A
+    unit: null
+    type: artifact                 # a real snippet (SQL, log, diff, ledger entry), scrubbed of identifiers
+    stem: "How many rows can this query return that have grade_level_number = 9?"
+    artifact: |
+      select student_id, grade_level_number
+      from students
+      where grade_level_number > 9
+    options:
+      - {text: "None", correct: true, rationale: "> 9 excludes 9 itself."}
+      - {text: "All of them", correct: false, rationale: "That would need >= 9."}
+      - {text: "It depends on the data", correct: false, rationale: "The filter excludes 9 whatever the data holds."}
+    sources: []
+  - id: F1-A-03
+    pool: A
+    unit: null
+    type: ordering                 # steps in the CORRECT order; shown shuffled
+    stem: "Put the clauses in the order BigQuery requires you to write them."
+    artifact: null
+    steps:
+      - {text: "SELECT", rationale: "The column list comes first."}
+      - {text: "FROM", rationale: "Then the table the rows come from."}
+      - {text: "WHERE", rationale: "Then the row filter."}
+      - {text: "ORDER BY", rationale: "Sorting comes last."}
+    sources: []
+  - id: F1-B-01
+    pool: B
+    unit: null
+    type: mcq
+    stem: "A query has `where school_year = 2026 and grade_level_number = 10`. Which rows does it return?"
+    artifact: null
+    options:
+      - {text: "Rows meeting both conditions", correct: true, rationale: "AND requires every condition to hold."}
+      - {text: "Rows meeting either condition", correct: false, rationale: "That is OR."}
+    sources: []
+  - id: F1-B-02
+    pool: B
+    unit: null
+    type: mcq
+    stem: "Which comparison finds rows where a column has no value?"
+    artifact: null
+    options:
+      - {text: "column IS NULL", correct: true, rationale: "NULL is not a value, so it needs IS NULL."}
+      - {text: "column = NULL", correct: false, rationale: "Any comparison with NULL is unknown, so no row matches."}
+    sources: []
+  - id: F1-B-03
+    pool: B
+    unit: null
+    type: mcq
+    stem: "What does LIMIT 10 guarantee without an ORDER BY?"
+    artifact: null
+    options:
+      - {text: "At most 10 rows, in no guaranteed order", correct: true, rationale: "Without ORDER BY, which rows come back is not defined."}
+      - {text: "The first 10 rows of the table", correct: false, rationale: "A table has no inherent first rows."}
+    sources: []
+  - id: F1-U-01
+    pool: unit
+    unit: F1-01
+    type: mcq
+    stem: "You filtered on `status = 'Enrolled'` and got zero rows, but you know enrolled students exist. What is the most likely cause?"
+    artifact: null
+    options:
+      - {text: "The stored value is spelled or cased differently", correct: true, rationale: "String comparison is exact; check the distinct values first."}
+      - {text: "BigQuery cannot filter strings", correct: false, rationale: "It can; the comparison is simply exact."}
+    sources: []
