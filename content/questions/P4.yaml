@@ -1,0 +1,166 @@
+# P4 — The nightly run: jobs, schedules and sensors; the nightly order; what a sensor cursor is.
+# Forms A and B are parallel: (01) what starts a given job and what kind of definition that is,
+# (02) the order of the night's steps, (03) an artifact on what a sensor stores as its cursor.
+skill: P4
+confidence:
+  A:
+    - "I could name the sensor that starts ais_data_mart_production_run and say what condition it waits for before firing."
+    - "I could put the main steps of ais_data_mart_production_run in order, from the parallel syncs to the dbt build."
+  B:
+    - "I could say whether a given nightly job here is started by a schedule or by a sensor, and why."
+    - "I could explain what a sensor's cursor stores and how it stops the same run being launched twice."
+items:
+  - id: P4-A-01
+    pool: A
+    unit: null
+    type: mcq
+    stem: "What starts ais_data_mart_production_run, the nightly AIS Warehouse job?"
+    artifact: null
+    options:
+      - text: "A sensor, veracross_gcs_data_ready_sensor, which polls gs://ais_data_import/data_import_vx/ every 5 minutes and launches a run once every file there has refreshed since that night's 8 PM Eastern boundary"
+        correct: true
+        rationale: "The orchestration reference's Triggering paragraph describes exactly this: the job is event-triggered by the arrival of the whole Veracross Data Packages batch."
+      - text: "A cron schedule at 2 AM Eastern"
+        correct: false
+        rationale: "The 2 AM cron starts the Google Workspace job; the warehouse job moved from a cron schedule to a sensor in 2026."
+      - text: "ais_data_mart_deadline_check at 6 AM Eastern"
+        correct: false
+        rationale: "The deadline check is a watchdog that runs after the fact; it launches a recovery run only when the night's run has missed the deadline."
+      - text: "It fires as soon as the first Data Packages file of the night lands in GCS"
+        correct: false
+        rationale: "The sensor waits for the whole batch; firing on the first file was the flaw in the earlier cursor rule, which is why it was replaced."
+    sources:
+      - {repo: orchestration, path: docs/orchestration-reference.md, commit: ea713797fe70d68779f9116577dda81dddcc4e6f}
+      - {repo: orchestration, path: README.md, commit: ea713797fe70d68779f9116577dda81dddcc4e6f}
+  - id: P4-A-02
+    pool: A
+    unit: null
+    type: ordering
+    stem: "Put these steps of ais_data_mart_production_run in the order they happen."
+    artifact: null
+    steps:
+      - text: "_start fans out the parallel branches: the dlt syncs, the NWEA MAP import, the photo conversion, the Veracross archive and the VM-metrics load"
+        rationale: "Every data-side branch starts concurrently off the no-op kickoff, and none blocks the others."
+      - text: "check_dlt_landing_volumes_for_data_mart checks each dlt landing table's row count"
+        rationale: "The landing-completeness gate sits between the dlt syncs and the barrier, so a truncated landing can stop the run before the dbt build."
+      - text: "pre_dbt_barrier waits for every branch to finish"
+        rationale: "The fan-in waits for the gate and the other branches before any dbt work starts."
+      - text: "git_pull_main clones or fetches the warehouse repo's main branch"
+        rationale: "The dbt-repo pull runs after the barrier, immediately ahead of the build, so a failed build is re-run from here with the fix."
+      - text: "run_dbt_build_target_prod runs dbt build --target prod"
+        rationale: "The build comes last in this list; the best-effort tail ops chain on after it."
+    sources:
+      - {repo: orchestration, path: docs/orchestration-reference.md, commit: ea713797fe70d68779f9116577dda81dddcc4e6f}
+  - id: P4-A-03
+    pool: A
+    unit: null
+    type: artifact
+    stem: "This is an excerpt of veracross_gcs_data_ready_sensor in the orchestration repo's sensors.py. What does this sensor store as its cursor, and what does that achieve?"
+    artifact: |
+      now = datetime.now(UTC)
+      night_start = night_window_start(now)
+      ...
+      oldest_blob = min(blobs, key=lambda b: b.updated)
+      if oldest_blob.updated < night_start:
+          return SkipReason("Batch incomplete: ...")
+
+      # One run per night: the night's 8pm boundary is both cursor and run_key.
+      night_key = night_start.isoformat()
+      if context.cursor == night_key:
+          return SkipReason(f"Already fired for tonight (8pm boundary {night_key}).")
+
+      return SensorResult(
+          run_requests=[RunRequest(run_key=night_key)],
+          cursor=night_key,
+      )
+    options:
+      - text: "Tonight's 8 PM Eastern boundary, used as both the cursor and the run_key, so each night's batch starts exactly one run even if the sensor restarts"
+        correct: true
+        rationale: "The code sets cursor and run_key to night_key and skips when the cursor already equals it; the reference says this guarantees one run per nightly batch."
+      - text: "The newest file's updated time, so the run starts as soon as any package lands"
+        correct: false
+        rationale: "That was the earlier max(updated) cursor, which fired on the first package of the night; the fixed 8 PM anchor replaced it."
+      - text: "The name of each file seen, so every Veracross file triggers its own run"
+        correct: false
+        rationale: "Per-file cursors belong to per-file sensors such as vx_landing_metadata_sensor; this batch sensor fires once for the whole batch."
+      - text: "The run ID of the last warehouse run, so the sensor can retry it if it failed"
+        correct: false
+        rationale: "Nothing here reads run IDs; failures are reported by email_on_run_failure, not retried by this sensor."
+    sources:
+      - {repo: orchestration, path: dagster/ais_orchestration/sensors.py, commit: ea713797fe70d68779f9116577dda81dddcc4e6f}
+      - {repo: orchestration, path: docs/orchestration-reference.md, commit: ea713797fe70d68779f9116577dda81dddcc4e6f}
+  - id: P4-B-01
+    pool: B
+    unit: null
+    type: mcq
+    stem: "What starts ais_google_workspace_analysis, the Google Workspace dbt job?"
+    artifact: null
+    options:
+      - text: "A schedule, nightly_ais_google_workspace_analysis_schedule: cron 0 2 * * * in America/New_York, so 2 AM Eastern by the clock, because its upstream is a BigQuery-native export with no GCS drop to watch"
+        correct: true
+        rationale: "The orchestration reference names this cron schedule, and the README gives the reason Workspace stays on a clock while the other pipelines are file- or data-driven."
+      - text: "A sensor that watches GCS for the Workspace export files"
+        correct: false
+        rationale: "The Workspace source is populated by Google's native BigQuery export; nothing lands in GCS for a sensor to watch."
+      - text: "It is chained onto the tail of ais_data_mart_production_run"
+        correct: false
+        rationale: "It is a separate job with its own repo clone and concurrency tag, and it may overlap the warehouse job freely; it is not one of the warehouse job's tail ops."
+      - text: "ais_data_mart_deadline_check launches it at 6 AM"
+        correct: false
+        rationale: "The deadline check monitors the Workspace job and alerts if it missed; the recovery run it can trigger is only for the warehouse job."
+    sources:
+      - {repo: orchestration, path: docs/orchestration-reference.md, commit: ea713797fe70d68779f9116577dda81dddcc4e6f}
+      - {repo: orchestration, path: README.md, commit: ea713797fe70d68779f9116577dda81dddcc4e6f}
+  - id: P4-B-02
+    pool: B
+    unit: null
+    type: ordering
+    stem: "Put these events of one night on the warehouse pipeline in the order they happen."
+    artifact: null
+    steps:
+      - text: "From 8 PM Eastern, Veracross starts spreading the Data Packages export across the overnight window"
+        rationale: "The export is spread over an 8 PM-8 AM window to stay under the 200,000-rows-per-hour load cap."
+      - text: "The last package of the night, normally SSTermGrades at about 4 AM, re-lands in data_import_vx/"
+        rationale: "The batch is not complete until the last package has refreshed."
+      - text: "veracross_gcs_data_ready_sensor sees every file refreshed since 8 PM and requests a run"
+        rationale: "The oldest file only clears the 8 PM boundary once the last package has landed, so this is when the sensor fires."
+      - text: "ais_data_mart_production_run runs its syncs and gate, then the dbt build"
+        rationale: "The job launched by the sensor does the extract, the landing check and the build."
+      - text: "At 6 AM Eastern, ais_data_mart_deadline_check checks for a successful run since midnight"
+        rationale: "The same-day watchdog runs on its own 6 AM schedule and alerts, or triggers a recovery run, if the warehouse run has not completed."
+    sources:
+      - {repo: orchestration, path: docs/orchestration-reference.md, commit: ea713797fe70d68779f9116577dda81dddcc4e6f}
+  - id: P4-B-03
+    pool: B
+    unit: null
+    type: artifact
+    stem: "This is an excerpt of person_base64_photos_ready_sensor, which starts the Toddle photo upload job. What does this sensor store as its cursor, and when does it skip?"
+    artifact: |
+      rows = list(client.query(photo_freshness_sql()).result(...))
+      ...
+      newest = rows[0].max_updated_at  # datetime, tz-aware
+      last_fire = datetime.fromisoformat(context.cursor) if context.cursor else None
+
+      if last_fire is not None and newest <= last_fire:
+          return SkipReason("No new photos since last fire ...")
+
+      return SensorResult(
+          run_requests=[RunRequest(run_key=newest.isoformat())],
+          cursor=newest.isoformat(),
+      )
+    options:
+      - text: "The newest MAX(updated_at) it has fired for; it skips until that value advances, so each new batch of encoded photos starts one upload run"
+        correct: true
+        rationale: "The code compares the table's newest updated_at with the stored cursor, and each photo batch carries one updated_at value, so the sensor fires once per batch."
+      - text: "The list of person IDs already uploaded, so it skips people who were done before"
+        correct: false
+        rationale: "Per-person upload state lives in the toddle_photo_uploads table read by the job; the sensor keeps only one timestamp."
+      - text: "Tonight's 8 PM Eastern boundary, like the warehouse sensor"
+        correct: false
+        rationale: "The fixed 8 PM anchor belongs to the warehouse batch sensor; this one follows the photo table's own updated_at."
+      - text: "The run ID of the last upload run, so it skips while that run is still going"
+        correct: false
+        rationale: "Nothing here reads run IDs; both the cursor and the run_key are the newest updated_at."
+    sources:
+      - {repo: orchestration, path: dagster/ais_orchestration/sensors.py, commit: ea713797fe70d68779f9116577dda81dddcc4e6f}
+      - {repo: orchestration, path: docs/orchestration-reference.md, commit: ea713797fe70d68779f9116577dda81dddcc4e6f}

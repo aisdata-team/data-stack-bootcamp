@@ -1,0 +1,159 @@
+# P5 · Reading the record — diagnostic bank (forms A and B).
+# Facts are drawn from orchestration@ea713797fe70d68779f9116577dda81dddcc4e6f and
+# warehouse@9efbb8b979e3be90ded565726fba8da7597fd115.
+skill: P5
+confidence:
+  A:
+    - "I could find the DECISIONS.md entry behind a CLAUDE.md rule's citation in under five minutes, using grep rather than scrolling."
+    - "I could tell from an id like RM-234, ORCH-102 or WH-33 which file defines it before opening anything."
+  B:
+    - "I could say what is currently waiting on the operator and which marker in which files puts an item on that list."
+    - "I could tell whether a DECISIONS.md entry I found still stands or has been superseded, and find the entry that replaced it."
+items:
+  - id: P5-A-01
+    pool: A
+    unit: null
+    type: mcq
+    stem: "A pull request description mentions `ORCH-102`. Which file defines it?"
+    artifact: null
+    options:
+      - text: "`docs/risk-register.md` in the orchestration repo — a row in the Register table plus a matching Detail entry"
+        correct: true
+        rationale: "ORCH-NN and WH-NN are risk ids, and the cross-repo register defines each one as a Register row with a Detail entry."
+      - text: "`planning/ROADMAP.md`, as a backlog row"
+        correct: false
+        rationale: "The roadmap's ids are RM-NN; it cites risk ids like ORCH-102 as sources but does not define them."
+      - text: "`DECISIONS.md`, under a heading named ORCH-102"
+        correct: false
+        rationale: "DECISIONS.md headings are dated `## YYYY-MM-DD` ids; entries cite risk ids but a risk is scored and defined in the register."
+      - text: "The warehouse repo, because the risk is cross-repo"
+        correct: false
+        rationale: "The one register lives in the orchestration repo and covers both repos, including the warehouse's WH-* rows."
+    sources:
+      - {repo: orchestration, path: README.md, commit: ea713797fe70d68779f9116577dda81dddcc4e6f}
+      - {repo: orchestration, path: docs/risk-register.md, commit: ea713797fe70d68779f9116577dda81dddcc4e6f}
+      - {repo: warehouse, path: CLAUDE.md, commit: 9efbb8b979e3be90ded565726fba8da7597fd115}
+  - id: P5-A-02
+    pool: A
+    unit: null
+    type: artifact
+    stem: "CLAUDE.md's rule on the operator marker cites `(2026-09-08 (b), 2026-09-18 (c), RM-202)`. You want the first of those entries and run this grep in the orchestration repo. Which line starts it?"
+    artifact: |
+      $ grep -n "^## 2026-09-08" DECISIONS.md
+      2004:## 2026-09-08 (d) — First-run outcomes become a counted metric, and ledger entries get an advisory length budget (RM-203)
+      2020:## 2026-09-08 (c) — The sibling edge set is NOT symmetrised: one record does not earn a rule (RM-193)
+      2028:## 2026-09-08 (b) — Work whose next step is a PERSON is declared, queued and shown on the landing page (RM-202)
+      2048:## 2026-09-08 — CLAUDE.md becomes a contract and the README becomes an index: the always-loaded context goes on a diet (RM-201)
+    options:
+      - text: "Line 2028"
+        correct: true
+        rationale: "The citation names the heading lettered (b), and that heading's title also carries RM-202, the other id in the citation."
+      - text: "Line 2020"
+        correct: false
+        rationale: "It is the second hit, but hits come newest-first in the file, so position does not give the letter; this one is (c)."
+      - text: "Line 2048"
+        correct: false
+        rationale: "A bare `## 2026-09-08` heading is the (a) slot for that date, and this entry is about RM-201, not RM-202."
+      - text: "None — the grep cannot settle it, so read DECISIONS.md from the top"
+        correct: false
+        rationale: "The headings are citable ids exactly so that a grep finds them; the file is searched, never read end to end."
+    sources:
+      - {repo: orchestration, path: CLAUDE.md, commit: ea713797fe70d68779f9116577dda81dddcc4e6f}
+      - {repo: orchestration, path: DECISIONS.md, commit: ea713797fe70d68779f9116577dda81dddcc4e6f}
+  - id: P5-A-03
+    pool: A
+    unit: null
+    type: artifact
+    stem: "This is the last line of the register's Detail entry for ORCH-102. What does it do in the Risk & Roadmap viewer, and what takes the item off that list?"
+    artifact: |
+      ⏳ **OPERATOR since 2026-09-21** — RM-234 needs a colleague and an afternoon chosen; nothing a session can do moves this row until then.
+    options:
+      - text: "It lists the item on the viewer's 'Waiting on you' tab, oldest first with its age; the item leaves when the marker is removed at close-out"
+        correct: true
+        rationale: "The viewer's parser builds the 'Waiting on you' tab from these declared markers, and removing the marker at close-out is what clears the item."
+      - text: "Nothing on its own — the viewer finds operator work by looking for the word 'operator' anywhere in a Status cell or Detail entry"
+        correct: false
+        rationale: "Membership is declared by the marker, never inferred from prose, because 'operator' in a Status cell is almost always past tense."
+      - text: "It becomes one of the three cards on the Next steps landing tab until /next-steps ranks something higher"
+        correct: false
+        rationale: "The queue has its own tab; the landing page carries only a one-line pointer with the count and the oldest item's age."
+      - text: "It drops off automatically once the date is 30 days old"
+        correct: false
+        rationale: "Nothing expires a marker; the item stays, and ages, until the marker itself is removed at close-out."
+    sources:
+      - {repo: orchestration, path: docs/risk-register.md, commit: ea713797fe70d68779f9116577dda81dddcc4e6f}
+      - {repo: orchestration, path: CLAUDE.md, commit: ea713797fe70d68779f9116577dda81dddcc4e6f}
+      - {repo: orchestration, path: webapp/README.md, commit: ea713797fe70d68779f9116577dda81dddcc4e6f}
+  - id: P5-B-01
+    pool: B
+    unit: null
+    type: mcq
+    stem: "The register's ORCH-102 entry says its remediation is `RM-234`. Which file defines RM-234?"
+    artifact: null
+    options:
+      - text: "`planning/ROADMAP.md` — the single backlog for both repos"
+        correct: true
+        rationale: "RM-NN ids are roadmap items; new items get the next free RM-NN in that file."
+      - text: "`docs/risk-register.md`, as another risk row"
+        correct: false
+        rationale: "The register's ids are ORCH-NN and WH-NN; it names RM items as remediations but does not define them."
+      - text: "`DECISIONS.md`, under a heading named RM-234"
+        correct: false
+        rationale: "DECISIONS.md headings are dated ids; an entry cites the RM-NN of the work it records, but the item itself is a roadmap row."
+      - text: "`webapp/README.md`, which lists every roadmap item"
+        correct: false
+        rationale: "The viewer renders the roadmap, but the Markdown files stay the single source of truth and its README does not list items."
+    sources:
+      - {repo: orchestration, path: planning/ROADMAP.md, commit: ea713797fe70d68779f9116577dda81dddcc4e6f}
+      - {repo: orchestration, path: docs/risk-register.md, commit: ea713797fe70d68779f9116577dda81dddcc4e6f}
+      - {repo: orchestration, path: README.md, commit: ea713797fe70d68779f9116577dda81dddcc4e6f}
+  - id: P5-B-02
+    pool: B
+    unit: null
+    type: artifact
+    stem: "A roadmap row cites `DECISIONS.md` (2026-09-21 (d)). You run this grep in the orchestration repo. Which line starts the cited entry?"
+    artifact: |
+      $ grep -n "^## 2026-09-21" DECISIONS.md
+      382:## 2026-09-21 (b) — The six-month ways-of-working retrospective is filed, not chatted: a placement on the sense-making rubric, a register row for the operating model, and two follow-ups (ORCH-102, RM-233, RM-234)
+      399:## 2026-09-21 (d) — `dbt-214@`'s row on `data_snapshots` is removed, not demoted: it granted nothing, and RM-232 removed the reason for it (RM-229, RM-232, ORCH-48)
+      443:## 2026-09-21 (c) — MAP Fluency will be loaded by scripting the vendor's UI export; the DEX and the Data API are both closed (RM-162, ORCH-103)
+      470:## 2026-09-21 — MART-4 covers the whole home project, and the read that got it there found a third vendor grant and a key-bearer at OWNER over children's DOBs (RM-229, RM-230, ORCH-48, WH-04)
+    options:
+      - text: "Line 399"
+        correct: true
+        rationale: "The citation names the heading lettered (d), and only line 399 carries that letter."
+      - text: "Line 470"
+        correct: false
+        rationale: "It is the fourth hit, but the file's order is not letter order; a bare `## 2026-09-21` heading is the (a) slot."
+      - text: "Line 382"
+        correct: false
+        rationale: "It is the first hit, but it is lettered (b), not (d); being first says nothing about the letter."
+      - text: "Line 443"
+        correct: false
+        rationale: "That heading is lettered (c); the letter in the citation has to match the letter in the heading."
+    sources:
+      - {repo: orchestration, path: CLAUDE.md, commit: ea713797fe70d68779f9116577dda81dddcc4e6f}
+      - {repo: orchestration, path: DECISIONS.md, commit: ea713797fe70d68779f9116577dda81dddcc4e6f}
+  - id: P5-B-03
+    pool: B
+    unit: null
+    type: artifact
+    stem: "You grep to the entry `## 2026-09-08 (b)` and find this line directly under its heading. How should you now read that entry?"
+    artifact: |
+      > **Superseded by 2026-09-18 (c)** ("The operator queue gets its own tab; the landing page keeps the count"). Only the placement changed — the queue renders on its own "Waiting on you" tab, with the count on the tab and a one-line pointer left on the landing page; everything else in this entry stands.
+    options:
+      - text: "It still stands except on where the queue is shown; for placement, read the 2026-09-18 (c) entry"
+        correct: true
+        rationale: "A supersession banner names the later entry and says in one line what changed; here only the placement did."
+      - text: "It is void — skip it and read only 2026-09-18 (c)"
+        correct: false
+        rationale: "The banner says everything else in the entry stands, so skipping it loses the rest of the decision."
+      - text: "It is marked for deletion and will be pruned from DECISIONS.md"
+        correct: false
+        rationale: "A superseded entry gets a banner, never a deletion; DECISIONS.md is never pruned and its headings never move."
+      - text: "Any CLAUDE.md rule that cites it is now obsolete"
+        correct: false
+        rationale: "CLAUDE.md's operator-marker rule cites both 2026-09-08 (b) and 2026-09-18 (c); the rule stands with both entries behind it."
+    sources:
+      - {repo: orchestration, path: DECISIONS.md, commit: ea713797fe70d68779f9116577dda81dddcc4e6f}
+      - {repo: orchestration, path: CLAUDE.md, commit: ea713797fe70d68779f9116577dda81dddcc4e6f}

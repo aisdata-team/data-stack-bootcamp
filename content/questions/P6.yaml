@@ -1,0 +1,155 @@
+# P6 · Personal data in this stack — diagnostic bank (forms A and B).
+# Facts are drawn from orchestration@ea713797fe70d68779f9116577dda81dddcc4e6f and
+# warehouse@9efbb8b979e3be90ded565726fba8da7597fd115.
+skill: P6
+confidence:
+  A:
+    - "I could explain in two sentences why `MOD(student_id, 10000)` does not anonymise a student."
+    - "I could say where the anonymization salt is stored and which dbt target refuses to build without it."
+  B:
+    - "I could tell from a model's SQL whether an anonymized id was minted through the salted macros or by hand."
+    - "I could explain why the warehouse's CI can run on every pull request without touching a row of student data."
+items:
+  - id: P6-A-01
+    pool: A
+    unit: null
+    type: mcq
+    stem: "Before the salted macros, `anon_person_id` was computed as `MOD(student_id, 10000)`. Why did that not really anonymise anyone?"
+    artifact: null
+    options:
+      - text: "MOD is a public function, so anyone with query access and the identified id could recompute the mapping and re-identify the rows"
+        correct: true
+        rationale: "The macro's header says exactly this: MOD and an unsalted MD5 are public, so the id-to-pseudonym map could be reproduced."
+      - text: "The result was INT64 rather than STRING, so it could be joined back to other tables"
+        correct: false
+        rationale: "The salted bucket keys deliberately stay INT64 too; the type was never the weakness, recomputability was."
+      - text: "10,000 buckets meant several students shared a bucket, which leaked identity"
+        correct: false
+        rationale: "Buckets are expected to be shared; the macro notes collision statistics are unchanged by salting, so sharing was not the flaw."
+      - text: "MOD produced 0..N-1, which was off by one against the 1-indexed anon sheets"
+        correct: false
+        rationale: "That off-by-one was real but only cost overlay coverage on a sliver of rows; it has nothing to do with whether an id can be re-identified."
+    sources:
+      - {repo: warehouse, path: macros/anonymization_keys.sql, commit: 9efbb8b979e3be90ded565726fba8da7597fd115}
+      - {repo: warehouse, path: CLAUDE.md, commit: 9efbb8b979e3be90ded565726fba8da7597fd115}
+  - id: P6-A-02
+    pool: A
+    unit: null
+    type: artifact
+    stem: "This macro supplies the salt to `anon_bucket` and `anon_pseudonym`. The production dbt build starts on the VM and `DBT_ANON_SALT` is missing from the container's environment. What happens?"
+    artifact: |
+      {% macro _anon_salt() %}
+          {%- if target.name == 'prod' -%}
+              {{ env_var('DBT_ANON_SALT') }}
+          {%- else -%}
+              {{ env_var('DBT_ANON_SALT', '') }}
+          {%- endif -%}
+      {% endmacro %}
+    options:
+      - text: "The build fails loudly at parse time"
+        correct: true
+        rationale: "On target `prod`, env_var has no default, so a missing salt stops the build rather than shipping weakly-anonymized output."
+      - text: "The build runs with an empty salt and ships the output"
+        correct: false
+        rationale: "The empty-string default is only on the non-prod branch; prod has no default precisely to prevent this."
+      - text: "The macro falls back to the old MOD / MD5 expressions"
+        correct: false
+        rationale: "There is no fallback in the macro; its only branches are the prod env_var and the non-prod env_var with an empty default."
+      - text: "dbt fetches the salt from dbt Cloud instead"
+        correct: false
+        rationale: "The salt is not stored in dbt Cloud at all; it reaches the prod run only through the VM's environment."
+    sources:
+      - {repo: warehouse, path: macros/anonymization_keys.sql, commit: 9efbb8b979e3be90ded565726fba8da7597fd115}
+      - {repo: orchestration, path: CLAUDE.md, commit: ea713797fe70d68779f9116577dda81dddcc4e6f}
+  - id: P6-A-03
+    pool: A
+    unit: null
+    type: mcq
+    stem: "Where does the salt used by the production dbt build live?"
+    artifact: null
+    options:
+      - text: "In Secret Manager, rendered into the VM container's `.env` as `DBT_ANON_SALT` at deploy — not in dbt Cloud and not in any repo"
+        correct: true
+        rationale: "The macro's header and orchestration CLAUDE.md agree: secrets come from Secret Manager via render-secrets.sh, and the salt is unreadable from BigQuery and from the repo."
+      - text: "In dbt Cloud's environment variables, so dev and prod anonymise identically"
+        correct: false
+        rationale: "The salt is deliberately not stored in dbt Cloud, which is dev-only; dev runs with an empty salt."
+      - text: "In a BigQuery configuration table the build reads at run time"
+        correct: false
+        rationale: "The salt is designed to be unreadable from BigQuery, since anyone with query access could otherwise reproduce the mapping."
+      - text: "In `.env.base.example`, committed so a new VM can be set up"
+        correct: false
+        rationale: "That file is only a template; `.env` and `.env.base` are gitignored and the salt is never committed."
+    sources:
+      - {repo: warehouse, path: macros/anonymization_keys.sql, commit: 9efbb8b979e3be90ded565726fba8da7597fd115}
+      - {repo: orchestration, path: CLAUDE.md, commit: ea713797fe70d68779f9116577dda81dddcc4e6f}
+  - id: P6-B-01
+    pool: B
+    unit: null
+    type: mcq
+    stem: "`anon_pseudonym` hashes with SHA-256 where the old code used an unsalted MD5. According to the macro, what actually stops someone recomputing a pseudonym from a staff id?"
+    artifact: null
+    options:
+      - text: "The secret salt folded into the hashed input"
+        correct: true
+        rationale: "The macro says the salt, not the hash choice, is what defeats recomputation and rainbow tables."
+      - text: "SHA-256 being a stronger hash than MD5"
+        correct: false
+        rationale: "The macro calls SHA-256 a modest upgrade; without the salt, anyone could still hash a known id and match it."
+      - text: "The `to_hex` encoding of the result"
+        correct: false
+        rationale: "Hex is just a way of writing the bytes; anyone who can compute the hash can encode it the same way."
+      - text: "The macro only running on the prod target"
+        correct: false
+        rationale: "The macro runs on every target; only where the salt comes from differs, and non-prod uses an empty salt."
+    sources:
+      - {repo: warehouse, path: macros/anonymization_keys.sql, commit: 9efbb8b979e3be90ded565726fba8da7597fd115}
+  - id: P6-B-02
+    pool: B
+    unit: null
+    type: artifact
+    stem: "The warehouse runs `dbt parse` in CI on every pull request. From this README excerpt, why does CI need no anonymization salt?"
+    artifact: |
+      `dbt parse` builds `target/manifest.json` from project source alone. It never
+      connects, so `ci/profiles.yml` is a committed stub with a deliberately fake project
+      — if a future change makes CI try to connect, it fails loudly rather than quietly
+      reaching a real dataset. [...] The CI target is named `ci`, never `prod`,
+      so `macros/anonymization_keys.sql` takes the empty-salt branch and no Secret Manager
+      value is required
+    options:
+      - text: "Its target is `ci`, so the macro takes the empty-salt branch, and CI never connects to a real dataset or reads a row"
+        correct: true
+        rationale: "Only target `prod` demands the salt, and CI's stub profile points at a fake project it never connects to."
+      - text: "The salt is committed in `ci/profiles.yml` for CI's use"
+        correct: false
+        rationale: "The profile is a stub with a deliberately fake project; the salt is never committed to the repo."
+      - text: "CI reads the salt from a GitHub Actions secret"
+        correct: false
+        rationale: "The README says none of the CI workflows holds a credential, opens a warehouse connection or reads a row of data."
+      - text: "CI builds against the dev dataset, where anonymization is switched off"
+        correct: false
+        rationale: "CI builds nothing against any dataset; `dbt parse` works from source alone and never connects."
+    sources:
+      - {repo: warehouse, path: README.md, commit: 9efbb8b979e3be90ded565726fba8da7597fd115}
+      - {repo: warehouse, path: macros/anonymization_keys.sql, commit: 9efbb8b979e3be90ded565726fba8da7597fd115}
+  - id: P6-B-03
+    pool: B
+    unit: null
+    type: mcq
+    stem: "The Risk & Roadmap viewer bakes the register's text into its JavaScript bundle. Why is it served behind IAP rather than from Firebase Hosting?"
+    artifact: null
+    options:
+      - text: "IAP authenticates the request before Cloud Run serves any byte, which suits content that includes minors'-PII risk detail"
+        correct: true
+        rationale: "The viewer's README says IAP gates at the network edge, so not even the bundle is served before Google auth passes."
+      - text: "Firebase Auth would protect the bundle just as well; IAP was chosen only for convenience"
+        correct: false
+        rationale: "Client-side Firebase Auth gates app logic but not the bytes, so baked-in register data would be downloadable by anyone with the URL."
+      - text: "Firebase Hosting cannot serve a React app"
+        correct: false
+        rationale: "The README's objection is that Firebase serves static files publicly, not that it cannot host the app."
+      - text: "The viewer queries student rows live from BigQuery, and only IAP can reach BigQuery"
+        correct: false
+        rationale: "The viewer has no live data layer; its data is parsed from the Markdown docs and baked into the bundle at build time."
+    sources:
+      - {repo: orchestration, path: webapp/README.md, commit: ea713797fe70d68779f9116577dda81dddcc4e6f}

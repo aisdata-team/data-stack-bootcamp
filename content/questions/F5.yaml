@@ -1,0 +1,164 @@
+# F5 · GCP projects, IAM and secrets — Stage 0 diagnostic bank.
+# Forms A and B are parallel: item 1 = IAM basics (who a binding names, where
+# it applies), item 2 = reading an IAM policy and choosing the right role,
+# item 3 = handling credentials (keyless auth, Secret Manager, why key files
+# on disk are a risk).
+skill: F5
+confidence:
+  A:
+    - "I could read a project's IAM policy and say which role a group is missing to run BigQuery queries."
+    - "I could explain why a pipeline on a VM should authenticate as the VM's attached service account instead of with a downloaded key file."
+  B:
+    - "I could propose narrower roles for a service account that currently holds roles/editor."
+    - "I could say where a third-party API password should be kept so a pipeline can use it without it ever being committed to git."
+items:
+  - id: F5-A-01
+    pool: A
+    unit: null
+    type: mcq
+    stem: "Why grant people access to a GCP project through a Google Group rather than to each person's account?"
+    artifact: null
+    options:
+      - text: "Adding or removing someone becomes a group-membership change, and the IAM policy stays short enough to review."
+        correct: true
+        rationale: "The binding names the group once; who is in it is managed separately, so onboarding and offboarding never touch IAM."
+      - text: "Groups can be given roles that individual accounts cannot hold."
+        correct: false
+        rationale: "Any role that can be granted to a group can be granted to an individual user; the difference is manageability."
+      - text: "Members of a group do not need two-factor authentication."
+        correct: false
+        rationale: "Group membership changes nothing about how each person signs in."
+      - text: "IAM does not allow roles to be granted to individual users."
+        correct: false
+        rationale: "IAM does allow user: members in a binding; granting to a group is a practice, not a restriction."
+    sources:
+      - {repo: orchestration, path: docs/gcp-infrastructure.md, commit: ea713797fe70d68779f9116577dda81dddcc4e6f}
+  - id: F5-A-02
+    pool: A
+    unit: null
+    type: artifact
+    stem: "A member of data-operators can browse tables in the BigQuery console, but every query fails with the error below. Which change fixes it with the least extra access?"
+    artifact: |
+      $ gcloud projects get-iam-policy ais-sandbox
+      bindings:
+      - members:
+        - group:data-operators@example.org
+        role: roles/bigquery.dataViewer
+      - members:
+        - serviceAccount:pipeline-runtime@ais-sandbox.iam.gserviceaccount.com
+        role: roles/bigquery.dataEditor
+      - members:
+        - serviceAccount:pipeline-runtime@ais-sandbox.iam.gserviceaccount.com
+        role: roles/bigquery.jobUser
+      etag: BwYexample00=
+      version: 1
+
+      Access Denied: Project ais-sandbox: User does not have bigquery.jobs.create permission in project ais-sandbox.
+    options:
+      - text: "Grant the group roles/bigquery.jobUser on the project."
+        correct: true
+        rationale: "Running a query creates a job, and Job User carries bigquery.jobs.create; Data Viewer only lets you read the data."
+      - text: "Grant the group roles/bigquery.dataEditor."
+        correct: false
+        rationale: "Data Editor adds the right to change tables but not to create query jobs, so the error would remain."
+      - text: "Grant the group roles/owner on the project."
+        correct: false
+        rationale: "It would work, but it also hands over control of every resource and of IAM itself, far beyond running queries."
+      - text: "Create a service-account key for each operator to query with."
+        correct: false
+        rationale: "People sign in as themselves; the missing piece is a role, and a key file adds a credential that can be stolen."
+    sources:
+      - {repo: orchestration, path: docs/gcp-infrastructure.md, commit: ea713797fe70d68779f9116577dda81dddcc4e6f}
+  - id: F5-A-03
+    pool: A
+    unit: null
+    type: mcq
+    stem: "A pipeline running on a Compute Engine VM needs to query BigQuery. Which way of authenticating keeps no credential file on the VM?"
+    artifact: null
+    options:
+      - text: "Attach a service account to the VM and let the client libraries use Application Default Credentials, which get short-lived tokens from the metadata server."
+        correct: true
+        rationale: "The token is issued on demand to code on that VM and expires within about an hour, so there is no long-lived secret to copy."
+      - text: "Download a JSON key for a service account and point GOOGLE_APPLICATION_CREDENTIALS at it."
+        correct: false
+        rationale: "It works, but it is a long-lived key on disk: anyone who copies it from a backup, snapshot or commit can act as that account from anywhere."
+      - text: "Run gcloud auth login on the VM with your own Google account."
+        correct: false
+        rationale: "The jobs would then run as you, with all of your access, and would break when your account is removed."
+      - text: "Commit the JSON key to a private repository so every deploy has it."
+        correct: false
+        rationale: "Everyone with repository access gets the key, and it stays in git history even after the file is deleted."
+    sources:
+      - {repo: orchestration, path: CLAUDE.md, commit: ea713797fe70d68779f9116577dda81dddcc4e6f}
+      - {repo: orchestration, path: docs/gcp-infrastructure.md, commit: ea713797fe70d68779f9116577dda81dddcc4e6f}
+  - id: F5-B-01
+    pool: B
+    unit: null
+    type: mcq
+    stem: "You grant a user roles/bigquery.dataViewer on the project ais-sandbox. Which datasets in that project can they now read?"
+    artifact: null
+    options:
+      - text: "Every dataset in the project, including ones created later."
+        correct: true
+        rationale: "A role granted on a project is inherited by every resource inside it, and inheritance is checked each time access is attempted."
+      - text: "Only the datasets that existed when the role was granted."
+        correct: false
+        rationale: "A grant is not a snapshot; a dataset created later sits inside the same project and inherits the same binding."
+      - text: "None until the role is also granted on each dataset."
+        correct: false
+        rationale: "Dataset-level grants can add access, but a project-level grant already covers every dataset in it."
+      - text: "Every dataset in every project in the organisation."
+        correct: false
+        rationale: "Inheritance flows down from where the role is granted; a project grant does not reach sibling projects."
+    sources: []
+  - id: F5-B-02
+    pool: B
+    unit: null
+    type: artifact
+    stem: "The pipeline's service account only needs to read and write BigQuery tables and run queries in this project. Which change follows least privilege?"
+    artifact: |
+      $ gcloud projects get-iam-policy ais-sandbox
+      bindings:
+      - members:
+        - group:data-operators@example.org
+        role: roles/bigquery.jobUser
+      - members:
+        - serviceAccount:pipeline-runtime@ais-sandbox.iam.gserviceaccount.com
+        role: roles/editor
+      etag: BwYexample01=
+      version: 1
+    options:
+      - text: "Replace its roles/editor binding with roles/bigquery.dataEditor and roles/bigquery.jobUser."
+        correct: true
+        rationale: "Those two roles cover reading and writing tables and running queries, and nothing else."
+      - text: "Leave roles/editor in place, since the pipeline already works."
+        correct: false
+        rationale: "Editor is a basic role that can change almost every resource in the project, so anyone who gets this account's token could too."
+      - text: "Upgrade it to roles/owner so it never hits a permission error."
+        correct: false
+        rationale: "Owner adds the power to change IAM itself, which widens access rather than narrowing it."
+      - text: "Keep roles/editor but give the account a JSON key so its actions are traceable."
+        correct: false
+        rationale: "A key adds a long-lived credential that can be stolen and removes no access; the account's actions are logged either way."
+    sources: []
+  - id: F5-B-03
+    pool: B
+    unit: null
+    type: mcq
+    stem: "A pipeline needs a password for a vendor's API (not a Google service). Where should that password live?"
+    artifact: null
+    options:
+      - text: "In Secret Manager, with the pipeline's service account allowed to read that one secret, fetched when the stack is deployed or run."
+        correct: true
+        rationale: "The secret stays out of git, access to it is an IAM grant you can review and revoke, and reads are logged."
+      - text: "In a config file committed to the private repository."
+        correct: false
+        rationale: "Everyone with repository access can read it, and it stays in git history even after the line is deleted."
+      - text: "In the compose file's environment: section."
+        correct: false
+        rationale: "The compose file is committed to git, so this is the same as committing the password."
+      - text: "In a service-account key created for the vendor."
+        correct: false
+        rationale: "A service-account key authenticates to Google Cloud, not to a third party's API, and is itself one more secret to protect."
+    sources:
+      - {repo: orchestration, path: CLAUDE.md, commit: ea713797fe70d68779f9116577dda81dddcc4e6f}

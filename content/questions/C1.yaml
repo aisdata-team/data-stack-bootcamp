@@ -1,0 +1,158 @@
+# C1 · The operating model — diagnostic bank (forms A and B).
+# Facts are drawn from orchestration@ea713797fe70d68779f9116577dda81dddcc4e6f and
+# warehouse@9efbb8b979e3be90ded565726fba8da7597fd115.
+skill: C1
+confidence:
+  A:
+    - "I could say which of CLAUDE.md, the README, DECISIONS.md, the roadmap and the risk register I would open to answer a given question about the stack."
+    - "I could explain ORCH-102 to a colleague in two sentences: what is at risk, and what result would reduce it."
+  B:
+    - "I could say where a newly found risk, a newly found improvement and a newly made decision each get written down."
+    - "I could explain why CLAUDE.md holds one-line rules while the reasoning behind them lives in DECISIONS.md."
+items:
+  - id: C1-A-01
+    pool: A
+    unit: null
+    type: mcq
+    stem: "Why does the orchestration repo keep CLAUDE.md to rules with a one-line why and a citation?"
+    artifact: null
+    options:
+      - text: "It is loaded on every turn of every session, so every byte costs tokens before work starts; the reasoning lives in the DECISIONS.md entry each rule cites"
+        correct: true
+        rationale: "CLAUDE.md's own opening says a 47 KB version was costing about 12k tokens per turn, which is why it became a contract."
+      - text: "Because DECISIONS.md is loaded at the start of every session instead, so CLAUDE.md need not repeat it"
+        correct: false
+        rationale: "DECISIONS.md is far too large to load; the rule is to grep it and never read it end to end."
+      - text: "Because CLAUDE.md is written for human readers, and Claude Code reads the README instead"
+        correct: false
+        rationale: "CLAUDE.md is the guidance for Claude Code in the repo; the README is the index a session reads before the page it touches."
+      - text: "Because its rules change almost daily, and short rules are cheap to rewrite"
+        correct: false
+        rationale: "A change to CLAUDE.md is a change to conventions, which is Tier 3 and gets the full documentation loop, not a casual rewrite."
+    sources:
+      - {repo: orchestration, path: CLAUDE.md, commit: ea713797fe70d68779f9116577dda81dddcc4e6f}
+      - {repo: warehouse, path: CLAUDE.md, commit: 9efbb8b979e3be90ded565726fba8da7597fd115}
+  - id: C1-A-02
+    pool: A
+    unit: null
+    type: artifact
+    stem: "A /project-analysis run finds (1) a new way a nightly job could fail silently and (2) a cheap improvement to an existing check. Using these excerpts, where does each finding go?"
+    artifact: |
+      From planning/ROADMAP.md, "How this file works":
+        1. The risk register (docs/risk-register.md) — the mitigation for a live risk
+           enters as a roadmap item tagged with its risk ID(s). [...]
+        3. /project-analysis findings — the analysis skill's baseline is precisely the
+           register plus this file; a new material finding is routed *into* the register
+           (if it's a risk) or here (if it's an improvement), rather than being
+           re-reported forever.
+
+      From CLAUDE.md:
+        New ideas are roadmap items and new risks are register rows, not ad-hoc reports.
+    options:
+      - text: "(1) becomes a row in docs/risk-register.md; (2) becomes an RM item in planning/ROADMAP.md"
+        correct: true
+        rationale: "A risk goes to the register and an improvement to the roadmap, so the next analysis sees both as part of its baseline."
+      - text: "Both stay in the analysis report, to be raised again on the next run"
+        correct: false
+        rationale: "The roadmap says findings are routed into the ledger precisely so they are not re-reported forever."
+      - text: "Both become DECISIONS.md entries"
+        correct: false
+        rationale: "The ledger records decisions, not findings; a finding goes to the register or the roadmap."
+      - text: "(1) becomes an RM item; (2) becomes a register row"
+        correct: false
+        rationale: "That swaps them: risks are register rows and improvements are roadmap items."
+    sources:
+      - {repo: orchestration, path: planning/ROADMAP.md, commit: ea713797fe70d68779f9116577dda81dddcc4e6f}
+      - {repo: orchestration, path: CLAUDE.md, commit: ea713797fe70d68779f9116577dda81dddcc4e6f}
+  - id: C1-A-03
+    pool: A
+    unit: null
+    type: mcq
+    stem: "What does register risk ORCH-102 score?"
+    artifact: null
+    options:
+      - text: "That the change loop is one operator and one agent, and the ledger and runbooks meant to cover the bus factor have never been exercised by a second human"
+        correct: true
+        rationale: "That is the row's own wording: the operator is the only independent judgement, and a mitigation nobody has exercised is scored as if it works."
+      - text: "That the whole stack runs on a single 16 GB VM"
+        correct: false
+        rationale: "ORCH-102's entry names that as ORCH-01's risk, which scores the single VM and not the operating model."
+      - text: "That owners, access and lineage live in people's heads"
+        correct: false
+        rationale: "That is ORCH-44, governance knowledge; ORCH-102 was filed because neither it nor ORCH-01 scored the one-human change loop."
+      - text: "A judgement that building the stack with an AI agent was the wrong model and should be replaced"
+        correct: false
+        rationale: "The entry says explicitly that it is a control-verification gap, not a judgement that the model is wrong."
+    sources:
+      - {repo: orchestration, path: docs/risk-register.md, commit: ea713797fe70d68779f9116577dda81dddcc4e6f}
+  - id: C1-B-01
+    pool: B
+    unit: null
+    type: mcq
+    stem: "A session proposes adding two paragraphs to CLAUDE.md explaining why one of its rules exists. What does CLAUDE.md say to do instead?"
+    artifact: null
+    options:
+      - text: "Keep the rule to one line with its why and a citation, and put the reasoning in the DECISIONS.md entry the rule cites"
+        correct: true
+        rationale: "CLAUDE.md calls itself a contract: rules, a one-line why and a citation, with the reasoning never kept in CLAUDE.md itself."
+      - text: "Add the paragraphs: CLAUDE.md is where the reasoning is meant to live"
+        correct: false
+        rationale: "The file says the reasoning lives in the DECISIONS.md entry it cites, never in CLAUDE.md."
+      - text: "Put the paragraphs in README.md, which every session loads instead"
+        correct: false
+        rationale: "The README is the index to per-area pages; it is not where a rule's reasoning is recorded."
+      - text: "Put the paragraphs in the rule's roadmap Status cell"
+        correct: false
+        rationale: "Status cells carry run tallies, first-run detail and measurements; a decision's reasoning belongs in its DECISIONS.md entry."
+    sources:
+      - {repo: orchestration, path: CLAUDE.md, commit: ea713797fe70d68779f9116577dda81dddcc4e6f}
+      - {repo: warehouse, path: CLAUDE.md, commit: 9efbb8b979e3be90ded565726fba8da7597fd115}
+  - id: C1-B-02
+    pool: B
+    unit: null
+    type: artifact
+    stem: "Using this CLAUDE.md rule, which of these earns a new DECISIONS.md entry?"
+    artifact: |
+      The ledger records decisions, not events. Before writing an entry ask: would a
+      competent future session plausibly do the wrong thing without this? If not, it is
+      a finding → docs/ or the roadmap/register Status cell; a validation of an existing
+      decision → update that entry; a step in multi-part work → one entry per change.
+      Entries lead with the decision and stay as short as the decision allows
+      (2026-08-07 (d), RM-82 (b)).
+    options:
+      - text: "Choosing not to symmetrise the sibling edge set, because one record does not earn a rule"
+        correct: true
+        rationale: "It is a choice a future session could plausibly 'fix' back, which is the test; it is a real entry, 2026-09-08 (c)."
+      - text: "The nightly run took fourteen minutes longer than usual on Tuesday"
+        correct: false
+        rationale: "That is an event or finding; it belongs in docs/ or a Status cell, not the ledger."
+      - text: "A re-check confirmed that an earlier decision still holds"
+        correct: false
+        rationale: "A validation of an existing decision updates that entry rather than adding a new one."
+      - text: "The third successful run of a job, with its row counts"
+        correct: false
+        rationale: "Run tallies and measurements go to the roadmap or register Status cell, which is already their home."
+    sources:
+      - {repo: orchestration, path: CLAUDE.md, commit: ea713797fe70d68779f9116577dda81dddcc4e6f}
+      - {repo: orchestration, path: DECISIONS.md, commit: ea713797fe70d68779f9116577dda81dddcc4e6f}
+  - id: C1-B-03
+    pool: B
+    unit: null
+    type: mcq
+    stem: "ORCH-102's remediation is RM-234: a colleague performs one runbook from the docs alone and writes every question down as a gap. Which outcome does the register say would take ORCH-102's likelihood to 1?"
+    artifact: null
+    options:
+      - text: "The colleague completes the runbook without having to ask a question"
+        correct: true
+        rationale: "The entry says to re-score on RM-234's measured result, and a runbook completed without a question takes likelihood to 1."
+      - text: "RM-234 being scheduled and carried out, whatever happens during it"
+        correct: false
+        rationale: "The entry says to re-score on the measured result, not on the exercise having happened."
+      - text: "The agent writing more runbooks for a second operator"
+        correct: false
+        rationale: "The gap is that the docs have never been used by a second human; more unexercised docs do not close it."
+      - text: "The runbook stalls and the gaps are filed"
+        correct: false
+        rationale: "A stalled runbook strengthens severity's justification and files the gaps; it does not lower the likelihood."
+    sources:
+      - {repo: orchestration, path: docs/risk-register.md, commit: ea713797fe70d68779f9116577dda81dddcc4e6f}

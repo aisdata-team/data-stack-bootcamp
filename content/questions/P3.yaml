@@ -1,0 +1,166 @@
+# P3 — Trace a field from dashboard to source: exposures, and lineage from a mart column back
+# through intermediate and staging to the source table.
+# Forms A and B are parallel: (01) an exposure fragment, and which model it sends you to first,
+# (02) the ordered lineage of one mart back to its landing table, (03) what fills a source table.
+skill: P3
+confidence:
+  A:
+    - "I could find, in exposures.yml, the mart models that a named Looker Studio dashboard depends on."
+    - "I could follow a mart column back through the intermediate and staging models to the source table it came from."
+  B:
+    - "I could name the staging model where a raw source column is renamed to the field name a dashboard shows."
+    - "I could say which process loads the source table behind a staging model such as stg_vx__students."
+items:
+  - id: P3-A-01
+    pool: A
+    unit: null
+    type: artifact
+    stem: "This is the exposure for one Looker Studio dashboard, from the warehouse's models/exposures.yml (URL and owner lines removed). A score on this dashboard looks wrong. Which dbt model does the exposure tell you to open first?"
+    artifact: |
+      - name: dashboard_nwea_map_scores
+        label: "AIS NWEA MAP Scores"
+        description: "Dashboard of NWEA MAP assessment results across the school."
+        type: dashboard
+        maturity: low
+        depends_on:
+          - ref('mart_nwea_map')
+    options:
+      - text: "mart_nwea_map"
+        correct: true
+        rationale: "depends_on lists the models the dashboard reads, and mart_nwea_map is the only one declared, so tracing starts there."
+      - text: "mart_fct_nwea_map"
+        correct: false
+        rationale: "That is the clean-grain Kimball fact over the same data, but the dashboard does not declare it; the OBT mart is what it reads."
+      - text: "fct_nwea_map"
+        correct: false
+        rationale: "That is further upstream in the chain; a dashboard never reads an intermediate model directly, so start at the declared mart and work back."
+      - text: "stg_gcs__nwea_map"
+        correct: false
+        rationale: "Staging is near the end of the trace, not the start; you reach it by working back from the mart."
+    sources:
+      - {repo: warehouse, path: models/exposures.yml, commit: 9efbb8b979e3be90ded565726fba8da7597fd115}
+      - {repo: warehouse, path: README.md, commit: 9efbb8b979e3be90ded565726fba8da7597fd115}
+  - id: P3-A-02
+    pool: A
+    unit: null
+    type: ordering
+    stem: "Trace the column map_test_rit_score from the AIS NWEA MAP Scores dashboard back to where it enters the warehouse. Put the stops in order, starting with the model the dashboard's exposure names."
+    artifact: null
+    steps:
+      - text: "mart_nwea_map"
+        rationale: "The exposure's depends_on names it; its SQL is just select * from obt_nwea_map_students."
+      - text: "obt_nwea_map_students"
+        rationale: "The one-big-table model that joins dim_students onto fct_nwea_map and re-attaches school-year and grade-level attributes."
+      - text: "fct_nwea_map"
+        rationale: "The fact at natural grain; it reads stg_gcs__nwea_map and computes growth from map_test_rit_score."
+      - text: "stg_gcs__nwea_map"
+        rationale: "Staging is where the raw testritscore column is cast to INT64 and renamed map_test_rit_score."
+      - text: "The source table data_sources.nwea_map"
+        rationale: "stg_gcs__nwea_map selects from source('data_sources', 'nwea_map'), the GCS-backed table of NWEA MAP Growth results."
+    sources:
+      - {repo: warehouse, path: models/exposures.yml, commit: 9efbb8b979e3be90ded565726fba8da7597fd115}
+      - {repo: warehouse, path: models/mart/mart_obt/academics/mart_nwea_map.sql, commit: 9efbb8b979e3be90ded565726fba8da7597fd115}
+      - {repo: warehouse, path: models/intermediate/int_academics/obt_nwea_map_students.sql, commit: 9efbb8b979e3be90ded565726fba8da7597fd115}
+      - {repo: warehouse, path: models/intermediate/int_academics/fct_nwea_map.sql, commit: 9efbb8b979e3be90ded565726fba8da7597fd115}
+      - {repo: warehouse, path: models/staging/data_sources/stg_gcs__nwea_map.sql, commit: 9efbb8b979e3be90ded565726fba8da7597fd115}
+  - id: P3-A-03
+    pool: A
+    unit: null
+    type: mcq
+    stem: "stg_gcs__nwea_map reads the source table data_sources.nwea_map. How does NWEA MAP Growth data get into it?"
+    artifact: null
+    options:
+      - text: "Each nightly warehouse run's NWEA MAP import pulls NWEA's Combined Data File and writes monthly CSVs to gs://ais_data_import/nwea_map/, which BigQuery reads as an external table"
+        correct: true
+        rationale: "The AIS Warehouse page describes this NWEA MAP DEX path, and the warehouse's data_sources group is the GCS-sourced CSVs, NWEA MAP Growth among them."
+      - text: "A dlt sync loads it into a data_import_dlt_* dataset"
+        correct: false
+        rationale: "The dlt syncs cover MARIO, Veracross, Toddle and ManageBac; NWEA arrives as CSVs in GCS."
+      - text: "It comes in with the Veracross Data Packages export"
+        correct: false
+        rationale: "The Data Packages land in data_import_vx and carry Veracross entities, not NWEA test results."
+      - text: "Teachers enter scores into a Google Sheet that is exposed as an external table"
+        correct: false
+        rationale: "Sheets feed the data_import_sheets and data_dimensions sources (the NWEA rostering sheets among them), not the MAP results."
+    sources:
+      - {repo: orchestration, path: docs/pipelines/ais-warehouse.md, commit: ea713797fe70d68779f9116577dda81dddcc4e6f}
+      - {repo: orchestration, path: docs/orchestration-reference.md, commit: ea713797fe70d68779f9116577dda81dddcc4e6f}
+      - {repo: warehouse, path: README.md, commit: 9efbb8b979e3be90ded565726fba8da7597fd115}
+  - id: P3-B-01
+    pool: B
+    unit: null
+    type: artifact
+    stem: "This is part of the exposure for a Looker Studio dashboard, from models/exposures.yml (URL and owner lines removed). A teacher says the attendance shown for one of their classes is wrong. Which model does the exposure send you to first?"
+    artifact: |
+      - name: dashboard_ss_teacher
+        label: "SS Teacher Dashboard"
+        description: "This dashboard is for Secondary School teachers and filters based on Veracross enrollment data."
+        type: dashboard
+        maturity: low
+        depends_on:
+          - ref('mart_enrollments_identities')                # filtered on staff_email
+          - ref('mart_behaviors_enrollment_identities')       # filtered on staff_email
+          - ref('mart_nwea_map_enrollment_identities')        # filtered on staff_email
+          - ref('mart_class_attendance')                      # filtered on staff_email
+          - ref('mart_ss_term_grades')                        # filtered on staff_email
+    options:
+      - text: "mart_class_attendance"
+        correct: true
+        rationale: "It is the declared attendance model for this dashboard, so tracing a class's attendance starts there."
+      - text: "mart_enrollments_identities"
+        correct: false
+        rationale: "That serves enrolments; it decides which classes a teacher sees, not the attendance figures."
+      - text: "mart_master_attendance_student_identities"
+        correct: false
+        rationale: "That model exists and other dashboards declare it, but this exposure does not, so this dashboard does not read it."
+      - text: "stg_vx__staff, because the rows are filtered on staff_email"
+        correct: false
+        rationale: "The comment records the dashboard's viewer filter; the trace still starts at a mart the exposure declares."
+    sources:
+      - {repo: warehouse, path: models/exposures.yml, commit: 9efbb8b979e3be90ded565726fba8da7597fd115}
+  - id: P3-B-02
+    pool: B
+    unit: null
+    type: ordering
+    stem: "Trace a check-in column in mart_fct_mario_checkins back to where it enters the warehouse. Put the stops in order, starting with the mart."
+    artifact: null
+    steps:
+      - text: "mart_fct_mario_checkins"
+        rationale: "The Kimball mart; its SQL is just select * from fct_mario_checkins."
+      - text: "fct_mario_checkins"
+        rationale: "The fact at natural grain; among other things it reads int_mario_checkins_unnest."
+      - text: "int_mario_checkins_unnest"
+        rationale: "A support int_ model that unnests the JSON arrays of check-in responses and results; it reads stg_mario__check_ins."
+      - text: "stg_mario__check_ins"
+        rationale: "The staging model, which selects from the source table."
+      - text: "The source table data_import_dlt_mario.get_check_ins_by_id"
+        rationale: "stg_mario__check_ins reads source('data_import_dlt_mario', 'get_check_ins_by_id'), which the MARIO dlt sync loads."
+    sources:
+      - {repo: warehouse, path: models/mart/mart_kimball/mart_fct_mario_checkins.sql, commit: 9efbb8b979e3be90ded565726fba8da7597fd115}
+      - {repo: warehouse, path: models/intermediate/int_academics/fct_mario_checkins.sql, commit: 9efbb8b979e3be90ded565726fba8da7597fd115}
+      - {repo: warehouse, path: models/intermediate/int_academics/int_mario_checkins_unnest.sql, commit: 9efbb8b979e3be90ded565726fba8da7597fd115}
+      - {repo: warehouse, path: models/staging/data_import_mario/stg_mario__check_ins.sql, commit: 9efbb8b979e3be90ded565726fba8da7597fd115}
+      - {repo: orchestration, path: docs/orchestration-reference.md, commit: ea713797fe70d68779f9116577dda81dddcc4e6f}
+  - id: P3-B-03
+    pool: B
+    unit: null
+    type: mcq
+    stem: "stg_vx__students reads the source table data_import_vx.Data_Package_Students. How does Veracross data get into it?"
+    artifact: null
+    options:
+      - text: "Veracross's nightly Data Packages export drops CSV files into gs://ais_data_import/data_import_vx/, which BigQuery reads as external tables"
+        correct: true
+        rationale: "The warehouse README describes data_import_vx as Data Packages CSVs exposed as external tables, and the AIS Warehouse page gives the GCS path."
+      - text: "The Veracross dlt sync loads it from the v3 API"
+        correct: false
+        rationale: "The dlt sync lands in a different dataset, data_import_dlt_vx; data_import_vx is the Data Packages export."
+      - text: "Airbyte's List_* extracts load it each night"
+        correct: false
+        rationale: "The Airbyte List_* tables were decommissioned on 2026-07-08, and their dlt replacements land in data_import_dlt_vx, not here."
+      - text: "A dbt snapshot of the students table writes it"
+        correct: false
+        rationale: "Snapshots write to data_snapshots and read staging; they are downstream of this source, not what fills it."
+    sources:
+      - {repo: warehouse, path: README.md, commit: 9efbb8b979e3be90ded565726fba8da7597fd115}
+      - {repo: warehouse, path: models/staging/data_import_vx/stg_vx__students.sql, commit: 9efbb8b979e3be90ded565726fba8da7597fd115}
+      - {repo: orchestration, path: docs/pipelines/ais-warehouse.md, commit: ea713797fe70d68779f9116577dda81dddcc4e6f}

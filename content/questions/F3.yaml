@@ -1,0 +1,173 @@
+# F3 · Git and GitHub — Stage 0 diagnostic bank.
+# Forms A and B are parallel: item 1 = getting a local change to GitHub
+# (commit vs push vs pull request), item 2 = reading a diff,
+# item 3 = merge conflicts.
+skill: F3
+confidence:
+  A:
+    - "I could take a change from a new branch to an open pull request on GitHub."
+    - "I could read conflict markers in a file and say which version came from which branch."
+  B:
+    - "I could read a diff and say exactly which lines a change adds and removes."
+    - "I could finish a merge after fixing a conflicted file, without committing the conflict markers."
+items:
+  - id: F3-A-01
+    pool: A
+    unit: null
+    type: ordering
+    stem: "You have a fresh clone of the repository on main. Put the steps for getting a change reviewed in a pull request in order."
+    artifact: null
+    steps:
+      - text: "git switch -c fix-attendance-filter"
+        rationale: "Create and move onto a new branch first, so the work stays off main."
+      - text: "Edit the file, then git add it"
+        rationale: "Staging chooses which changes go into the next commit."
+      - text: "git commit -m \"Fix attendance filter\""
+        rationale: "Committing records the staged change in your local repository only."
+      - text: "git push -u origin fix-attendance-filter"
+        rationale: "Pushing sends the branch and its commits to GitHub; until then nobody else can see them."
+      - text: "Open a pull request on GitHub from fix-attendance-filter into main"
+        rationale: "A pull request needs the branch to exist on GitHub, so it comes after the push."
+    sources: []
+  - id: F3-A-02
+    pool: A
+    unit: null
+    type: artifact
+    stem: "What does this change do?"
+    artifact: |
+      diff --git a/models/staging/stg_students.sql b/models/staging/stg_students.sql
+      --- a/models/staging/stg_students.sql
+      +++ b/models/staging/stg_students.sql
+      @@ -8,6 +8,6 @@ renamed as (
+           select
+               cast(student_id as string) as student_id,
+               first_name,
+      -        grade_level
+      +        cast(grade_level as int64) as grade_level_number
+           from source
+       )
+    options:
+      - text: "It replaces the grade_level column with grade_level cast to INT64 and renamed grade_level_number, so the output no longer has a column called grade_level."
+        correct: true
+        rationale: "The - line is removed and the + line added in its place; the unmarked lines are unchanged context."
+      - text: "It adds grade_level_number as a new column and keeps grade_level."
+        correct: false
+        rationale: "A line starting with - is deleted, not kept as context."
+      - text: "It removes the cast and goes back to a plain grade_level column."
+        correct: false
+        rationale: "This reads the diff backwards: - is the old version (a/) and + is the new version (b/)."
+      - text: "It changes six lines, 8 to 13."
+        correct: false
+        rationale: "The @@ header counts the whole hunk shown, including unchanged context lines; only one line actually changes."
+    sources: []
+  - id: F3-A-03
+    pool: A
+    unit: null
+    type: artifact
+    stem: "You are on your branch fix-attendance-filter and ran `git merge main`. Which statement about this part of the file is correct?"
+    artifact: |
+      $ git merge main
+      Auto-merging models/staging/stg_attendance.sql
+      CONFLICT (content): Merge conflict in models/staging/stg_attendance.sql
+      Automatic merge failed; fix conflicts and then commit the result.
+
+      (excerpt of models/staging/stg_attendance.sql)
+      <<<<<<< HEAD
+          where attendance_status = 'Absent'
+      =======
+          where attendance_status in ('Absent', 'Excused')
+      >>>>>>> main
+    options:
+      - text: "The top line is your branch's version (HEAD) and the bottom line is main's; you choose the result and delete all three marker lines."
+        correct: true
+        rationale: "HEAD is the branch you are on, and the name after >>>>>>> is the branch being merged in."
+      - text: "The top line is main's version, because main is the original."
+        correct: false
+        rationale: "HEAD always means your current branch, whichever branch that is."
+      - text: "The top line is the original and the bottom line is the merged result Git proposes."
+        correct: false
+        rationale: "Both halves are competing edits; Git proposes no result, which is why it stopped and asked you."
+      - text: "Git has already kept the bottom line; the top is left only for reference."
+        correct: false
+        rationale: "Until you edit the file, it contains both versions and the markers, which is not valid SQL."
+    sources: []
+  - id: F3-B-01
+    pool: B
+    unit: null
+    type: mcq
+    stem: "You ran `git commit` on your branch fix-attendance-filter, but the pull request page on GitHub shows no new commit. What is missing?"
+    artifact: null
+    options:
+      - text: "git push, to send the new commit to the branch on GitHub"
+        correct: true
+        rationale: "A commit lives only in your local repository until you push it."
+      - text: "git add, to stage the change again"
+        correct: false
+        rationale: "Staging happens before a commit; once committed, git add has nothing more to do for that change."
+      - text: "git pull, to sync with GitHub"
+        correct: false
+        rationale: "Pull brings other people's commits down to you; it never sends yours up."
+      - text: "A reviewer's approval, which makes new commits appear"
+        correct: false
+        rationale: "Pushed commits show on a pull request at once; approval is about merging, not visibility."
+    sources: []
+  - id: F3-B-02
+    pool: B
+    unit: null
+    type: artifact
+    stem: "What does this change do to the rows the model returns?"
+    artifact: |
+      diff --git a/models/staging/stg_enrollments.sql b/models/staging/stg_enrollments.sql
+      --- a/models/staging/stg_enrollments.sql
+      +++ b/models/staging/stg_enrollments.sql
+      @@ -14,4 +14,5 @@ filtered as (
+           select *
+           from renamed
+           where enrollment_status = 'Enrolled'
+      +      and school_year = 2026
+       )
+    options:
+      - text: "It adds a second condition, so rows must now be Enrolled AND in school year 2026; the model returns the same rows or fewer."
+        correct: true
+        rationale: "Only the + line is new; the existing where line stays, and AND can only narrow the result."
+      - text: "It replaces the Enrolled filter with a school-year filter."
+        correct: false
+        rationale: "The where line has no - in front of it, so it is unchanged context, not removed."
+      - text: "It adds the 2026 rows to the output alongside the Enrolled rows."
+        correct: false
+        rationale: "That would be OR; AND requires both conditions, so it removes rows rather than adding them."
+      - text: "It adds a new column called school_year to the output."
+        correct: false
+        rationale: "The line is part of the where clause, which filters rows; columns are chosen in the select list."
+    sources: []
+  - id: F3-B-03
+    pool: B
+    unit: null
+    type: artifact
+    stem: "A merge stopped with a conflict. What must you do to finish it?"
+    artifact: |
+      $ git status
+      On branch fix-attendance-filter
+      You have unmerged paths.
+        (fix conflicts and run "git commit")
+        (use "git merge --abort" to abort the merge)
+
+      Unmerged paths:
+        (use "git add <file>..." to mark resolution)
+        both modified:   models/staging/stg_attendance.sql
+
+      no changes added to commit (use "git add" and/or "git commit -a")
+    options:
+      - text: "Edit the file to the content you want and delete the conflict markers, then git add it and git commit."
+        correct: true
+        rationale: "git add marks the file as resolved, and the commit completes the merge."
+      - text: "Run git add and git commit straight away."
+        correct: false
+        rationale: "Git would accept it, but the <<<<<<< ======= >>>>>>> markers would be committed into the SQL."
+      - text: "Run git push; GitHub resolves conflicts on the server."
+        correct: false
+        rationale: "Push sends only finished commits; the unfinished merge stays in your local repository, and GitHub does not resolve it for you."
+      - text: "Delete the file and run git pull again."
+        correct: false
+        rationale: "Deleting the file throws away both sides' changes, and Git refuses to pull while a merge is still unfinished."
+    sources: []

@@ -1,0 +1,169 @@
+# P2 — Warehouse layers and modelling: staging / intermediate / mart; Kimball dims and facts in
+# mart_kimball vs wide one-big-table models in mart_obt; why keys are cast in staging.
+# Forms A and B are parallel: (01) which layer or model a piece of work belongs to, (02) an
+# artifact on casting keys in staging, (03) the mart_kimball vs mart_obt distinction.
+skill: P2
+confidence:
+  A:
+    - "I could say which layer (staging, intermediate or mart) a new business calculation belongs in, and why it does not go in the mart model."
+    - "I could explain why a key such as student_id is cast to STRING in the staging model that produces it."
+  B:
+    - "I could name the model another dbt model should ref() when the data it wants is served by a mart_* table."
+    - "I could explain why averaging a score over a mart_obt table can give the wrong answer when the same average over mart_kimball does not."
+items:
+  - id: P2-A-01
+    pool: A
+    unit: null
+    type: mcq
+    stem: "A dashboard needs a new calculated column on one of the mart_obt tables. Where does the calculation belong?"
+    artifact: null
+    options:
+      - text: "In the intermediate model that the mart wraps; the mart stays a plain select * of it"
+        correct: true
+        rationale: "The README says every mart model is a pure select * wrapper and all transformation logic lives in intermediate."
+      - text: "In the mart model's SQL, because the mart is what the dashboard reads"
+        correct: false
+        rationale: "Marts are pure passthroughs by design; putting logic there splits the transformation across two layers."
+      - text: "In the staging model, so the column is available to every model downstream"
+        correct: false
+        rationale: "Staging maps one to one to a source table and only renames, casts and applies minimal filters; business logic goes in intermediate."
+      - text: "As a calculated field in Looker Studio, so the warehouse does not change"
+        correct: false
+        rationale: "Logic hidden in one report is invisible to the dbt lineage and to every other consumer of the same mart."
+    sources:
+      - {repo: warehouse, path: README.md, commit: 9efbb8b979e3be90ded565726fba8da7597fd115}
+  - id: P2-A-02
+    pool: A
+    unit: null
+    type: artifact
+    stem: "This is an excerpt of stg_gcs__nwea_map. Later, fct_nwea_map's student_id is joined to dim_students.student_id. Why does the staging model cast studentid to STRING?"
+    artifact: |
+      source as (
+          select * from {{ source('data_sources', 'nwea_map') }}
+      ),
+
+      renamed as (
+          select
+              termname                     as map_term_name,
+              CAST(studentid as STRING)    as student_id,
+              SAFE_CAST(grade as INT64)    as map_student_grade_level_number,
+              subject                      as map_subject,
+              ...
+    options:
+      - text: "House rule: every primary and foreign key is cast to STRING in the staging model that produces it, so joins never hit an INT64-vs-STRING mismatch"
+        correct: true
+        rationale: "The warehouse CLAUDE.md states the rule and its reason; student_id is a key shared across the whole warehouse."
+      - text: "To anonymise the id before it reaches the dashboards"
+        correct: false
+        rationale: "A cast changes the type, not the value; anonymised identifiers are minted only through the anon_bucket / anon_pseudonym macros."
+      - text: "Because BigQuery external tables cannot hold integer columns"
+        correct: false
+        rationale: "The same excerpt casts grade to INT64, so integers are clearly allowed; the STRING cast is a choice about keys."
+      - text: "Because Looker Studio can only filter on text fields"
+        correct: false
+        rationale: "The cast happens for joins inside the warehouse, two layers before any dashboard reads the data."
+    sources:
+      - {repo: warehouse, path: CLAUDE.md, commit: 9efbb8b979e3be90ded565726fba8da7597fd115}
+      - {repo: warehouse, path: models/staging/data_sources/stg_gcs__nwea_map.sql, commit: 9efbb8b979e3be90ded565726fba8da7597fd115}
+  - id: P2-A-03
+    pool: A
+    unit: null
+    type: mcq
+    stem: "Which statement correctly describes the difference between mart_kimball and mart_obt?"
+    artifact: null
+    options:
+      - text: "mart_kimball serves clean-grain dimensions, facts and bridges for the MCP server and agents; mart_obt serves wide one-big-table models, fanned out for Looker Studio, connected Sheets and AppSheet"
+        correct: true
+        rationale: "This is how the README's diagram and Mart section split the two paths."
+      - text: "mart_kimball serves Looker Studio dashboards; mart_obt serves the MCP server and agents"
+        correct: false
+        rationale: "That swaps the consumers: dashboards read the wide OBT tables, and agents read the clean-grain Kimball model."
+      - text: "mart_obt models are views that select from mart_kimball tables"
+        correct: false
+        rationale: "No model may ref() a mart_* model; both mart folders wrap intermediate models (obt_* and dim_/fct_/bridge_ respectively)."
+      - text: "mart_kimball is the dev copy and mart_obt is the prod copy of the same tables"
+        correct: false
+        rationale: "Dev and prod are separated by BigQuery project, not by mart folder; both folders exist in both targets."
+    sources:
+      - {repo: warehouse, path: README.md, commit: 9efbb8b979e3be90ded565726fba8da7597fd115}
+      - {repo: warehouse, path: CLAUDE.md, commit: 9efbb8b979e3be90ded565726fba8da7597fd115}
+      - {repo: warehouse, path: dbt_project.yml, commit: 9efbb8b979e3be90ded565726fba8da7597fd115}
+  - id: P2-B-01
+    pool: B
+    unit: null
+    type: mcq
+    stem: "You are writing a new intermediate model that needs the conformed student dimension, which is served as mart_dim_students. What should your model ref()?"
+    artifact: null
+    options:
+      - text: "dim_students, the model mart_dim_students wraps"
+        correct: true
+        rationale: "The warehouse CLAUDE.md says never ref() a mart_* model from another model: marts are the end of the DAG, so ref the model the mart wraps."
+      - text: "mart_dim_students, because it is the published, tested version"
+        correct: false
+        rationale: "Marts are the serving layer; referencing one from a model breaks the rule that marts end the DAG."
+      - text: "mart_students, because it carries the most student columns"
+        correct: false
+        rationale: "That is also a mart, and a wide OBT one; the rule rules it out for the same reason."
+      - text: "The Data_Package_Students source directly, to skip the layers in between"
+        correct: false
+        rationale: "Going around staging and intermediate would repeat their cleaning and business logic in a second place."
+    sources:
+      - {repo: warehouse, path: CLAUDE.md, commit: 9efbb8b979e3be90ded565726fba8da7597fd115}
+      - {repo: warehouse, path: models/mart/mart_kimball/mart_dim_students.sql, commit: 9efbb8b979e3be90ded565726fba8da7597fd115}
+  - id: P2-B-02
+    pool: B
+    unit: null
+    type: artifact
+    stem: "This is an excerpt of stg_vx__students. Why are person_id, advisor_id and household_id cast to STRING here, while gender and graduation_year are passed through untouched?"
+    artifact: |
+      source as (
+          select * from {{ source('data_import_vx', 'Data_Package_Students') }}
+      ),
+
+      renamed as (
+          select
+              CAST(person_id as STRING)     as student_id,
+              first_name                    as student_first_name,
+              gender                        as student_gender,
+              CAST(advisor_id as STRING)    AS advisor_id,
+              CAST(household_id as STRING)  as student_household_id,
+              graduation_year               as student_graduation_year,
+              ...
+    options:
+      - text: "They are primary and foreign keys, and the house rule casts every key to STRING in the staging model that produces it so joins never hit an INT64-vs-STRING mismatch"
+        correct: true
+        rationale: "student_id, advisor_id and student_household_id are join keys; gender and graduation_year are attributes, which the rule does not cover."
+      - text: "They are personal data, and casting them to STRING masks the values"
+        correct: false
+        rationale: "A cast changes the type, not the value; masking or anonymising is done by dedicated macros."
+      - text: "dbt's ref() only works on STRING columns"
+        correct: false
+        rationale: "ref() points at models, not columns; it has no bearing on column types."
+      - text: "It makes the columns sort alphabetically on dashboards"
+        correct: false
+        rationale: "The rule is about joins inside the warehouse, not about how a dashboard sorts."
+    sources:
+      - {repo: warehouse, path: CLAUDE.md, commit: 9efbb8b979e3be90ded565726fba8da7597fd115}
+      - {repo: warehouse, path: models/staging/data_import_vx/stg_vx__students.sql, commit: 9efbb8b979e3be90ded565726fba8da7597fd115}
+  - id: P2-B-03
+    pool: B
+    unit: null
+    type: mcq
+    stem: "An analyst runs AVG() over a score column in a mart_obt table and gets a result weighted toward students with many teachers and enrolments. What is going on?"
+    artifact: null
+    options:
+      - text: "OBT models fan facts out by enrolment, staff and identity, so a score repeats on every fan-out row; aggregate at the measure's own grain, for example with COUNT(DISTINCT) or select distinct first"
+        correct: true
+        rationale: "The README warns that averaging or summing over an obt_/mart_obt model needs a dedup key, because the fan-out is the point of the layer."
+      - text: "mart_obt tables are views, so the average is recomputed differently each time it is queried"
+        correct: false
+        rationale: "Prod marts are materialized as tables; the skew comes from repeated rows, not from recomputation."
+      - text: "The score was not cast in staging, so AVG() is treating it as text"
+        correct: false
+        rationale: "A text column would make AVG() fail, not return a weighted number."
+      - text: "The mart_kimball fact has the same fan-out, so no mart can give the right number"
+        correct: false
+        rationale: "mart_kimball facts are at natural grain with no identity or teacher fan-out, which is exactly the difference between the two paths."
+    sources:
+      - {repo: warehouse, path: README.md, commit: 9efbb8b979e3be90ded565726fba8da7597fd115}
+      - {repo: warehouse, path: dbt_project.yml, commit: 9efbb8b979e3be90ded565726fba8da7597fd115}
