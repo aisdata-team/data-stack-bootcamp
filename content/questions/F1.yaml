@@ -85,18 +85,16 @@ items:
     pool: B
     unit: null
     type: artifact
-    stem: "This query fails with the error shown. What is the cause?"
+    stem: "BigQuery rejects this query with a syntax error before running it. What is the cause?"
     artifact: |
       select count(*) as rows from `ais-sandbox.training.students`
-
-      Syntax error: Unexpected keyword ROWS at [1:20]
     options:
       - text: "ROWS is a reserved keyword in BigQuery, so it cannot be an unquoted alias; call it total_rows instead."
         correct: true
         rationale: "ROWS is reserved (it is used in window frames such as ROWS BETWEEN), so the parser stops at it."
       - text: "COUNT(*) needs a column name, such as COUNT(student_id)."
         correct: false
-        rationale: "COUNT(*) is valid and counts every row; the error names the keyword ROWS, not COUNT."
+        rationale: "COUNT(*) is valid and counts every row; the problem is the alias, not the function."
       - text: "An aggregate needs a GROUP BY clause."
         correct: false
         rationale: "An aggregate with no GROUP BY is valid and returns one row for the whole table."
