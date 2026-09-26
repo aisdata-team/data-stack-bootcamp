@@ -1,0 +1,33 @@
+# Weekly source-drift report: which units and questions cite a file in
+# orchestration/warehouse that has changed since it was written.
+#
+# ADVISORY — never a required check. It FAILS CLOSED: with no
+# BOOTCAMP_SOURCES_TOKEN secret it still runs and goes red with "NOT RUN",
+# rather than skipping and looking clean.
+#
+# Monday 07:00 US Eastern during EDT (11:00 UTC; GitHub cron is UTC and DST-blind).
+name: drift
+
+on:
+  schedule:
+    - cron: "0 11 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  drift:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: requirements-dev.txt
+      - run: pip install -r requirements-dev.txt
+      - name: check source drift
+        env:
+          BOOTCAMP_SOURCES_TOKEN: ${{ secrets.BOOTCAMP_SOURCES_TOKEN }}
+        run: python scripts/check_source_drift.py
