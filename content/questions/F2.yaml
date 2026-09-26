@@ -35,25 +35,25 @@ items:
     pool: A
     unit: null
     type: artifact
-    stem: "Why does running the script fail?"
+    stem: "Why does running the script fail, and which command fixes it?"
     artifact: |
       dev@vm:~/project$ ls -l scripts/cleanup.sh
       -rw-r--r-- 1 dev dev 1204 Sep 20 09:14 scripts/cleanup.sh
       dev@vm:~/project$ ./scripts/cleanup.sh
       bash: ./scripts/cleanup.sh: Permission denied
     options:
-      - text: "No one has execute (x) permission on the file; `chmod +x scripts/cleanup.sh` would fix it."
+      - text: "No one may execute it; `chmod 744 scripts/cleanup.sh` fixes it."
         correct: true
-        rationale: "rw-r--r-- has no x anywhere, and a file must be executable to be run as ./file."
-      - text: "The file is owned by root, so it needs sudo."
+        rationale: "rw-r--r-- has no x anywhere, and a file must be executable to be run as ./file; 744 is rwxr--r--, which adds execute for the owner (dev) and changes nothing else."
+      - text: "Root owns it; `sudo chown dev scripts/cleanup.sh` fixes it."
         correct: false
-        rationale: "The third and fourth columns show the owner and group are dev, the user in the prompt."
-      - text: "Only its owner may read it."
+        rationale: "The third and fourth columns show the owner and group are already dev, the user in the prompt; changing the owner adds no x permission."
+      - text: "Only its owner may read it; `chmod 644 scripts/cleanup.sh` fixes it."
         correct: false
-        rationale: "r-- appears for group and others too, so everyone can read it; reading is not the problem."
-      - text: "The script contains a syntax error."
+        rationale: "r-- appears for group and others too, so everyone can already read it; and 644 is rw-r--r--, exactly the permissions it has now, still with no x."
+      - text: "The group cannot write it; `chmod 664 scripts/cleanup.sh` fixes it."
         correct: false
-        rationale: "A syntax error is reported by the shell after the script starts; 'Permission denied' means it never started."
+        rationale: "Write permission has nothing to do with running a file, and 664 (rw-rw-r--) still has no x, so it would still be denied."
     sources: []
   - id: F2-A-03
     pool: A
@@ -104,9 +104,9 @@ items:
       dev@vm:~/project$ ls -l .env
       -rw-rw-r-- 1 dev dev 812 Sep 20 09:14 .env
     options:
-      - text: "Every user on the machine can read it; `chmod 600 .env` leaves read and write for the owner only."
+      - text: "Every user can read it; `chmod 600 .env` fixes that."
         correct: true
-        rationale: "The last r is 'others', meaning everyone; 600 is rw------- (owner read/write, nothing for group or others)."
+        rationale: "The last r is 'others', meaning everyone; 600 is rw------- , which leaves read and write for the owner only and nothing for group or others."
       - text: "Nothing is wrong: only dev can read it."
         correct: false
         rationale: "The permission string has three groups (owner, group, others), and both the group and others have r."

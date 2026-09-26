@@ -19,9 +19,9 @@ items:
     stem: "Why grant people access to a GCP project through a Google Group rather than to each person's account?"
     artifact: null
     options:
-      - text: "Adding or removing someone becomes a group-membership change, and the IAM policy stays short enough to review."
+      - text: "Joiners and leavers then change the group, not the IAM policy."
         correct: true
-        rationale: "The binding names the group once; who is in it is managed separately, so onboarding and offboarding never touch IAM."
+        rationale: "The binding names the group once and who is in it is managed separately, so onboarding and offboarding never touch IAM, and the policy stays short enough to review."
       - text: "Groups can be given roles that individual accounts cannot hold."
         correct: false
         rationale: "Any role that can be granted to a group can be granted to an individual user; the difference is manageability."
@@ -76,9 +76,9 @@ items:
     stem: "A pipeline running on a Compute Engine VM needs to query BigQuery. Which way of authenticating keeps no credential file on the VM?"
     artifact: null
     options:
-      - text: "Attach a service account to the VM and let the client libraries use Application Default Credentials, which get short-lived tokens from the metadata server."
+      - text: "Attach a service account to the VM and use Application Default Credentials."
         correct: true
-        rationale: "The token is issued on demand to code on that VM and expires within about an hour, so there is no long-lived secret to copy."
+        rationale: "The client libraries then get short-lived tokens from the metadata server; each is issued on demand to code on that VM and expires within about an hour, so there is no long-lived secret to copy."
       - text: "Download a JSON key for a service account and point GOOGLE_APPLICATION_CREDENTIALS at it."
         correct: false
         rationale: "It works, but it is a long-lived key on disk: anyone who copies it from a backup, snapshot or commit can act as that account from anywhere."
@@ -148,9 +148,9 @@ items:
     stem: "A pipeline needs a password for a vendor's API (not a Google service). Where should that password live?"
     artifact: null
     options:
-      - text: "In Secret Manager, with the pipeline's service account allowed to read that one secret, fetched when the stack is deployed or run."
+      - text: "In Secret Manager, readable only by the pipeline's service account."
         correct: true
-        rationale: "The secret stays out of git, access to it is an IAM grant you can review and revoke, and reads are logged."
+        rationale: "The pipeline fetches it when the stack is deployed or run, so it stays out of git; access to it is an IAM grant you can review and revoke, and reads are logged."
       - text: "In a config file committed to the private repository."
         correct: false
         rationale: "Everyone with repository access can read it, and it stays in git history even after the line is deleted."

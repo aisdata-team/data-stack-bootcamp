@@ -17,9 +17,9 @@ items:
     stem: "Why does the orchestration repo keep CLAUDE.md to rules with a one-line why and a citation?"
     artifact: null
     options:
-      - text: "It is loaded on every turn of every session, so every byte costs tokens before work starts; the reasoning lives in the DECISIONS.md entry each rule cites"
+      - text: "It is loaded on every turn, so each byte costs tokens before any work starts"
         correct: true
-        rationale: "CLAUDE.md's own opening says a 47 KB version was costing about 12k tokens per turn, which is why it became a contract."
+        rationale: "CLAUDE.md's own opening says a 47 KB version was costing about 12k tokens per turn of every session, which is why it became a contract; the reasoning lives in the DECISIONS.md entry each rule cites."
       - text: "Because DECISIONS.md is loaded at the start of every session instead, so CLAUDE.md need not repeat it"
         correct: false
         rationale: "DECISIONS.md is far too large to load; the rule is to grep it and never read it end to end."
@@ -71,9 +71,9 @@ items:
     stem: "What does register risk ORCH-102 score?"
     artifact: null
     options:
-      - text: "That the change loop is one operator and one agent, and the ledger and runbooks meant to cover the bus factor have never been exercised by a second human"
+      - text: "That a one-operator, one-agent loop rests on a record no second human has tried"
         correct: true
-        rationale: "That is the row's own wording: the operator is the only independent judgement, and a mitigation nobody has exercised is scored as if it works."
+        rationale: "The row's own wording: the change loop is one operator and one agent, the operator is the only independent judgement, and the ledger and runbooks meant to cover the bus factor have never been exercised by a second human; a mitigation nobody has exercised is scored as if it works."
       - text: "That the whole stack runs on a single 16 GB VM"
         correct: false
         rationale: "ORCH-102's entry names that as ORCH-01's risk, which scores the single VM and not the operating model."
@@ -92,9 +92,9 @@ items:
     stem: "A session proposes adding two paragraphs to CLAUDE.md explaining why one of its rules exists. What does CLAUDE.md say to do instead?"
     artifact: null
     options:
-      - text: "Keep the rule to one line with its why and a citation, and put the reasoning in the DECISIONS.md entry the rule cites"
+      - text: "Keep the one-line why and citation; the reasoning goes in DECISIONS.md"
         correct: true
-        rationale: "CLAUDE.md calls itself a contract: rules, a one-line why and a citation, with the reasoning never kept in CLAUDE.md itself."
+        rationale: "CLAUDE.md calls itself a contract: rules, a one-line why and a citation, with the reasoning in the DECISIONS.md entry the rule cites and never in CLAUDE.md itself."
       - text: "Add the paragraphs: CLAUDE.md is where the reasoning is meant to live"
         correct: false
         rationale: "The file says the reasoning lives in the DECISIONS.md entry it cites, never in CLAUDE.md."
@@ -139,7 +139,7 @@ items:
     pool: B
     unit: null
     type: mcq
-    stem: "ORCH-102's remediation is RM-234: a colleague performs one runbook from the docs alone and writes every question down as a gap. Which outcome does the register say would take ORCH-102's likelihood to 1?"
+    stem: "ORCH-102's remediation is RM-234, a cold-start test in which a colleague other than the operator performs one routine runbook from the docs. Which outcome of it does the register say would take ORCH-102's likelihood to 1?"
     artifact: null
     options:
       - text: "The colleague completes the runbook without having to ask a question"
@@ -151,7 +151,7 @@ items:
       - text: "The agent writing more runbooks for a second operator"
         correct: false
         rationale: "The gap is that the docs have never been used by a second human; more unexercised docs do not close it."
-      - text: "The runbook stalls and the gaps are filed"
+      - text: "The runbook stalls and the gaps it exposes are filed"
         correct: false
         rationale: "A stalled runbook strengthens severity's justification and files the gaps; it does not lower the likelihood."
     sources:
@@ -164,15 +164,18 @@ items:
     stem: A CLAUDE.md rule ends with the citation (2026-08-06). How do you find the reasoning behind it?
     artifact: null
     options:
-    - text: grep DECISIONS.md for headings starting '## 2026-08-06' and pick the one matching the rule's topic
+    - text: grep DECISIONS.md for '## 2026-08-06' and match the rule's topic
       correct: true
-      rationale: Citations point at dated DECISIONS headings, and one date can hold many entries.
+      rationale: Citations point at dated DECISIONS headings, and one date can hold many entries, so pick the heading whose title matches the rule.
     - text: Read DECISIONS.md from the top until you reach August
       correct: false
       rationale: It is about 1.3 MB; CLAUDE.md says to search it, never read it end to end.
     - text: Look in the git log for commits made on 2026-08-06
       correct: false
       rationale: Commits show what changed; the reasoning lives in the DECISIONS entry.
+    - text: Open that date's file in a docs/decisions/ folder
+      correct: false
+      rationale: There is no per-date folder; DECISIONS.md is one file and stays one file, never split.
     sources:
     - repo: orchestration
       path: CLAUDE.md
@@ -181,18 +184,21 @@ items:
     pool: unit
     unit: C1-01
     type: mcq
-    stem: Why is CLAUDE.md kept short, when DECISIONS.md is allowed to grow very large?
+    stem: Why must a dated heading in DECISIONS.md never be re-dated or re-lettered?
     artifact: null
     options:
-    - text: CLAUDE.md is loaded on every turn of every session, so its size is paid constantly; DECISIONS.md is only searched when needed
+    - text: Citations name it by date and letter, so they would stop finding it
       correct: true
-      rationale: The 2026-09-08 entry records a 47 KB CLAUDE.md costing about 12k tokens per turn before any work began.
-    - text: Short files are easier for GitHub to display
+      rationale: CLAUDE.md calls the '## YYYY-MM-DD [(x)]' headings citable ids that never move; a citation such as (2026-09-08 (b)) only works if that exact heading is still there.
+    - text: Git would lose the entry's history if its heading moved
       correct: false
-      rationale: Display is not the reason; cost on every turn is.
-    - text: DECISIONS.md is archived regularly, so its size doesn't matter
+      rationale: Git keeps the history of any edit; what breaks is every citation that points at the heading.
+    - text: Old entries are frozen and may never be edited at all
       correct: false
-      rationale: It is never archived, split, summarised or pruned.
+      rationale: Old entries do change; a superseded one gets a banner directly under its heading. It is the heading itself that stays put.
+    - text: Only the operator is allowed to edit DECISIONS.md by hand
+      correct: false
+      rationale: Sessions write DECISIONS entries at every documentation close-out; the rule is about headings staying citable, not about who edits.
     sources:
     - repo: orchestration
       path: CLAUDE.md
@@ -201,19 +207,25 @@ items:
     pool: unit
     unit: C1-01
     type: mcq
-    stem: What does risk ORCH-102 score?
+    stem: You are about to change the IBDP results parsing pipeline and first want to know how it works today. Which orchestration file do you open first?
     artifact: null
     options:
-    - text: That one operator with one agent is the whole change loop, and the written record meant to cover for that has never been used by a second person
+    - text: README.md, which links to that pipeline's own page
       correct: true
-      rationale: 'ORCH-102 calls it a control-verification gap: a mitigation nobody has exercised is scored as if it works.'
-    - text: That the single VM could fail
+      rationale: CLAUDE.md says to read README.md, the index, and then the page for what you touch; the README links one page per pipeline under docs/pipelines/.
+    - text: DECISIONS.md, reading from the newest entry down
       correct: false
-      rationale: That is a different risk (ORCH-01).
-    - text: That Claude Code writes bad code
+      rationale: DECISIONS.md holds the reasons behind decisions and is grepped, never read through; it is not a description of how the pipeline works now.
+    - text: planning/ROADMAP.md, under that pipeline's RM items
       correct: false
-      rationale: It says explicitly that it is not a judgement that the model is wrong.
+      rationale: The roadmap is the ranked backlog of work still to do, not a description of what runs today.
+    - text: docs/risk-register.md, under that pipeline's rows
+      correct: false
+      rationale: The register scores risks (ORCH-NN and WH-NN rows); it is not where a pipeline's workings are described.
     sources:
     - repo: orchestration
-      path: docs/risk-register.md
+      path: CLAUDE.md
+      commit: ea713797fe70d68779f9116577dda81dddcc4e6f
+    - repo: orchestration
+      path: README.md
       commit: ea713797fe70d68779f9116577dda81dddcc4e6f

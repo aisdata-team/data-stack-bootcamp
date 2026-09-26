@@ -180,24 +180,24 @@ items:
     pool: unit
     unit: P1-01
     type: mcq
-    stem: Where does the dbt code that the nightly production run executes come from?
+    stem: Most pipelines in this stack start when a file arrives in Cloud Storage. Which one runs at a fixed time instead, every night at 2 AM Eastern?
     artifact: null
     options:
-    - text: It is cloned fresh from the warehouse repo at run time
+    - text: Google Workspace
       correct: true
-      rationale: The orchestration README says the dbt projects are not tracked there; the production jobs clone them each night.
-    - text: A copy is kept in the orchestration repo's dagster/dbt/ folder
+      rationale: The README's data-flow table lists its trigger as Cron (2 AM Eastern); its upstream is a BigQuery-native export, so there is no GCS drop to wait for.
+    - text: AIS Warehouse
       correct: false
-      rationale: That folder is a stub; never add real dbt code there.
-    - text: It is installed as a Python package in the container image
+      rationale: The main pipeline is triggered by GCS arrival under data_import_vx/, not by a clock.
+    - text: IBDP results parsing
       correct: false
-      rationale: dbt itself is installed, but the models are cloned from the warehouse repo.
+      rationale: It fires when IB results PDFs are uploaded to ibdp_pdf_files/ in GCS.
+    - text: HubSpot mart push
+      correct: false
+      rationale: It fires on BigQuery batch freshness, once all the mart_hubspot tables have refreshed, not at a set time.
     sources:
     - repo: orchestration
       path: README.md
-      commit: ea713797fe70d68779f9116577dda81dddcc4e6f
-    - repo: orchestration
-      path: CLAUDE.md
       commit: ea713797fe70d68779f9116577dda81dddcc4e6f
   - id: P1-U-02
     pool: unit
@@ -206,18 +206,24 @@ items:
     stem: What starts the main AIS Warehouse pipeline each night?
     artifact: null
     options:
-    - text: Veracross files arriving in Cloud Storage under data_import_vx/
+    - text: The night's whole Veracross Data Packages batch landing under data_import_vx/
       correct: true
-      rationale: The README's data-flow table lists its trigger as GCS arrival (data_import_vx/*).
-    - text: A cron schedule at 2 AM
+      rationale: The README's data-flow table lists its trigger as GCS arrival (data_import_vx/*), and its sensor fires only once every file there has refreshed for the night, i.e. the whole batch has landed.
+    - text: The first Veracross Data Packages file of the night landing under data_import_vx/
       correct: false
-      rationale: That is the Google Workspace pipeline, the one exception that runs on a schedule.
-    - text: The operator starts it by hand in the Dagster UI
+      rationale: The sensor waits for every file in the batch; a partial upload, where only some tables have refreshed, does not start a run.
+    - text: The HubSpot mart push finishing its nightly sync to the CRM
+      correct: false
+      rationale: The HubSpot push runs after the warehouse build, on the marts it produces; it does not start it.
+    - text: An operator starting it by hand from the Dagster UI each night
       correct: false
       rationale: Manual runs are possible, but the nightly run is file-driven.
     sources:
     - repo: orchestration
       path: README.md
+      commit: ea713797fe70d68779f9116577dda81dddcc4e6f
+    - repo: orchestration
+      path: docs/orchestration-reference.md
       commit: ea713797fe70d68779f9116577dda81dddcc4e6f
   - id: P1-U-03
     pool: unit
@@ -235,6 +241,9 @@ items:
     - text: The previous night's complete mart
       correct: false
       rationale: It read the mart mid-write, so it was neither complete nor consistently old.
+    - text: Only the tables that had already finished rebuilding
+      correct: false
+      rationale: It pushed the mart as it stood, finished or not; at least one table was about 18 hours stale.
     sources:
     - repo: orchestration
       path: docs/risk-register.md

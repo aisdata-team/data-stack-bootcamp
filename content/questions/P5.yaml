@@ -17,10 +17,10 @@ items:
     stem: "A pull request description mentions `ORCH-102`. Which file defines it?"
     artifact: null
     options:
-      - text: "`docs/risk-register.md` in the orchestration repo — a row in the Register table plus a matching Detail entry"
+      - text: "`docs/risk-register.md`, as a Register row with a Detail entry"
         correct: true
-        rationale: "ORCH-NN and WH-NN are risk ids, and the cross-repo register defines each one as a Register row with a Detail entry."
-      - text: "`planning/ROADMAP.md`, as a backlog row"
+        rationale: "ORCH-NN and WH-NN are risk ids, and the cross-repo register in the orchestration repo defines each one as a row in the Register table plus a matching Detail entry."
+      - text: "`planning/ROADMAP.md`, as a row in the backlog table"
         correct: false
         rationale: "The roadmap's ids are RM-NN; it cites risk ids like ORCH-102 as sources but does not define them."
       - text: "`DECISIONS.md`, under a heading named ORCH-102"
@@ -50,10 +50,10 @@ items:
         rationale: "The citation names the heading lettered (b), and that heading's title also carries RM-202, the other id in the citation."
       - text: "Line 2020"
         correct: false
-        rationale: "It is the second hit, but hits come newest-first in the file, so position does not give the letter; this one is (c)."
+        rationale: "It is the second hit, but a hit's position in the file does not give its letter; this heading is lettered (c)."
       - text: "Line 2048"
         correct: false
-        rationale: "A bare `## 2026-09-08` heading is the (a) slot for that date, and this entry is about RM-201, not RM-202."
+        rationale: "It is a bare `## 2026-09-08` heading, which CLAUDE.md says consumes the (a) slot, not (b); and this entry is about RM-201, not RM-202."
       - text: "None — the grep cannot settle it, so read DECISIONS.md from the top"
         correct: false
         rationale: "The headings are citable ids exactly so that a grep finds them; the file is searched, never read end to end."
@@ -64,9 +64,9 @@ items:
     pool: A
     unit: null
     type: artifact
-    stem: "This is the last line of the register's Detail entry for ORCH-102. What does it do in the Risk & Roadmap viewer, and what takes the item off that list?"
+    stem: "This is the 'Residual (mitigated) score' bullet of ORCH-102's Detail entry (its middle elided); the ⏳ marker is the tail of that bullet, not a line of its own. What does the marker do in the Risk & Roadmap viewer, and what takes the item off that list?"
     artifact: |
-      ⏳ **OPERATOR since 2026-09-21** — RM-234 needs a colleague and an afternoon chosen; nothing a session can do moves this row until then.
+      - **Residual (mitigated) score:** 2 × 4 = **8** (Medium) — [...] a runbook that stalls raises severity's justification, not the score, and files the gaps. ⏳ **OPERATOR since 2026-09-21** — RM-234 needs a colleague and an afternoon chosen; nothing a session can do moves this row until then.
     options:
       - text: "It lists the item on the viewer's 'Waiting on you' tab, oldest first with its age; the item leaves when the marker is removed at close-out"
         correct: true
@@ -124,7 +124,7 @@ items:
         rationale: "The citation names the heading lettered (d), and only line 399 carries that letter."
       - text: "Line 470"
         correct: false
-        rationale: "It is the fourth hit, but the file's order is not letter order; a bare `## 2026-09-21` heading is the (a) slot."
+        rationale: "It is the fourth hit, but position in the file is not the letter; it is a bare `## 2026-09-21` heading, which CLAUDE.md says consumes the (a) slot, not (d)."
       - text: "Line 382"
         correct: false
         rationale: "It is the first hit, but it is lettered (b), not (d); being first says nothing about the letter."
@@ -142,10 +142,10 @@ items:
     artifact: |
       > **Superseded by 2026-09-18 (c)** ("The operator queue gets its own tab; the landing page keeps the count"). Only the placement changed — the queue renders on its own "Waiting on you" tab, with the count on the tab and a one-line pointer left on the landing page; everything else in this entry stands.
     options:
-      - text: "It still stands except on where the queue is shown; for placement, read the 2026-09-18 (c) entry"
+      - text: "It stands except on where the queue is shown; read 2026-09-18 (c) for that"
         correct: true
-        rationale: "A supersession banner names the later entry and says in one line what changed; here only the placement did."
-      - text: "It is void — skip it and read only 2026-09-18 (c)"
+        rationale: "A supersession banner names the later entry and says in one line what changed; here only the placement did, so read the 2026-09-18 (c) entry for where the queue is shown."
+      - text: "It is void: skip it and read only the 2026-09-18 (c) entry instead"
         correct: false
         rationale: "The banner says everything else in the entry stands, so skipping it loses the rest of the decision."
       - text: "It is marked for deletion and will be pruned from DECISIONS.md"

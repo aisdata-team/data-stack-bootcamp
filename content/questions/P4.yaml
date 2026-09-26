@@ -14,19 +14,19 @@ items:
     pool: A
     unit: null
     type: mcq
-    stem: "What starts ais_data_mart_production_run, the nightly AIS Warehouse job?"
+    stem: "What normally starts ais_data_mart_production_run, the nightly AIS Warehouse job?"
     artifact: null
     options:
-      - text: "A sensor, veracross_gcs_data_ready_sensor, which polls gs://ais_data_import/data_import_vx/ every 5 minutes and launches a run once every file there has refreshed since that night's 8 PM Eastern boundary"
+      - text: "veracross_gcs_data_ready_sensor, once the night's whole Data Packages batch has landed"
         correct: true
-        rationale: "The orchestration reference's Triggering paragraph describes exactly this: the job is event-triggered by the arrival of the whole Veracross Data Packages batch."
-      - text: "A cron schedule at 2 AM Eastern"
+        rationale: "The orchestration reference's Triggering paragraph: the sensor polls gs://ais_data_import/data_import_vx/ every 5 minutes and launches one run a night, only once every file there has refreshed for that night, i.e. the whole Veracross Data Packages batch has arrived."
+      - text: "A nightly cron schedule at 2 AM Eastern, by the clock"
         correct: false
         rationale: "The 2 AM cron starts the Google Workspace job; the warehouse job moved from a cron schedule to a sensor in 2026."
-      - text: "ais_data_mart_deadline_check at 6 AM Eastern"
+      - text: "ais_data_mart_deadline_check, on its 6 AM Eastern schedule"
         correct: false
         rationale: "The deadline check is a watchdog that runs after the fact; it launches a recovery run only when the night's run has missed the deadline."
-      - text: "It fires as soon as the first Data Packages file of the night lands in GCS"
+      - text: "veracross_gcs_data_ready_sensor, as soon as the first Data Packages file lands"
         correct: false
         rationale: "The sensor waits for the whole batch; firing on the first file was the flaw in the earlier cursor rule, which is why it was replaced."
     sources:
@@ -60,9 +60,6 @@ items:
       now = datetime.now(UTC)
       night_start = night_window_start(now)
       ...
-      oldest_blob = min(blobs, key=lambda b: b.updated)
-      if oldest_blob.updated < night_start:
-          return SkipReason("Batch incomplete: ...")
 
       # One run per night: the night's 8pm boundary is both cursor and run_key.
       night_key = night_start.isoformat()
@@ -74,9 +71,9 @@ items:
           cursor=night_key,
       )
     options:
-      - text: "Tonight's 8 PM Eastern boundary, used as both the cursor and the run_key, so each night's batch starts exactly one run even if the sensor restarts"
+      - text: "Tonight's 8 PM boundary, also used as run_key, so each night starts one run"
         correct: true
-        rationale: "The code sets cursor and run_key to night_key and skips when the cursor already equals it; the reference says this guarantees one run per nightly batch."
+        rationale: "The code sets cursor and run_key to night_key and skips when the cursor already equals it; the reference says this guarantees exactly one run per nightly batch, even across sensor restarts."
       - text: "The newest file's updated time, so the run starts as soon as any package lands"
         correct: false
         rationale: "That was the earlier max(updated) cursor, which fired on the first package of the night; the fixed 8 PM anchor replaced it."
@@ -96,9 +93,9 @@ items:
     stem: "What starts ais_google_workspace_analysis, the Google Workspace dbt job?"
     artifact: null
     options:
-      - text: "A schedule, nightly_ais_google_workspace_analysis_schedule: cron 0 2 * * * in America/New_York, so 2 AM Eastern by the clock, because its upstream is a BigQuery-native export with no GCS drop to watch"
+      - text: "A cron schedule at 2 AM Eastern, as it has no GCS drop to watch"
         correct: true
-        rationale: "The orchestration reference names this cron schedule, and the README gives the reason Workspace stays on a clock while the other pipelines are file- or data-driven."
+        rationale: "The orchestration reference names the schedule, nightly_ais_google_workspace_analysis_schedule (cron 0 2 * * * in America/New_York), and the README gives the reason: its upstream is a BigQuery-native export, so there is no GCS drop for a sensor to watch."
       - text: "A sensor that watches GCS for the Workspace export files"
         correct: false
         rationale: "The Workspace source is populated by Google's native BigQuery export; nothing lands in GCS for a sensor to watch."
@@ -115,7 +112,7 @@ items:
     pool: B
     unit: null
     type: ordering
-    stem: "Put these events of one night on the warehouse pipeline in the order they happen."
+    stem: "Put these events of a normal night on the warehouse pipeline in the order they happen."
     artifact: null
     steps:
       - text: "From 8 PM Eastern, Veracross starts spreading the Data Packages export across the overnight window"
@@ -149,9 +146,9 @@ items:
           cursor=newest.isoformat(),
       )
     options:
-      - text: "The newest MAX(updated_at) it has fired for; it skips until that value advances, so each new batch of encoded photos starts one upload run"
+      - text: "The newest updated_at it fired for; it skips until that value advances"
         correct: true
-        rationale: "The code compares the table's newest updated_at with the stored cursor, and each photo batch carries one updated_at value, so the sensor fires once per batch."
+        rationale: "The code compares the table's newest MAX(updated_at) with the stored cursor, and each photo batch carries one updated_at value, so each new batch of encoded photos starts exactly one upload run."
       - text: "The list of person IDs already uploaded, so it skips people who were done before"
         correct: false
         rationale: "Per-person upload state lives in the toddle_photo_uploads table read by the job; the sensor keeps only one timestamp."

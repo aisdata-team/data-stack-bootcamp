@@ -36,7 +36,7 @@ items:
     pool: A
     unit: null
     type: artifact
-    stem: "This is an excerpt of stg_gcs__nwea_map. Later, fct_nwea_map's student_id is joined to dim_students.student_id. Why does the staging model cast studentid to STRING?"
+    stem: "This is an excerpt of stg_gcs__nwea_map. Why does the staging model cast studentid to STRING?"
     artifact: |
       source as (
           select * from {{ source('data_sources', 'nwea_map') }}
@@ -50,18 +50,18 @@ items:
               subject                      as map_subject,
               ...
     options:
-      - text: "House rule: every primary and foreign key is cast to STRING in the staging model that produces it, so joins never hit an INT64-vs-STRING mismatch"
+      - text: "Every key is cast to STRING in staging, so joins never mix INT64 and STRING"
         correct: true
-        rationale: "The warehouse CLAUDE.md states the rule and its reason; student_id is a key shared across the whole warehouse."
-      - text: "To anonymise the id before it reaches the dashboards"
+        rationale: "The warehouse CLAUDE.md's house rule: every primary and foreign key is cast to STRING in the staging model that produces it, so joins never hit an INT64-vs-STRING mismatch; student_id is a key shared across the whole warehouse."
+      - text: "To anonymise the student id before it reaches the dashboards"
         correct: false
         rationale: "A cast changes the type, not the value; anonymised identifiers are minted only through the anon_bucket / anon_pseudonym macros."
       - text: "Because BigQuery external tables cannot hold integer columns"
         correct: false
         rationale: "The same excerpt casts grade to INT64, so integers are clearly allowed; the STRING cast is a choice about keys."
-      - text: "Because Looker Studio can only filter on text fields"
+      - text: "So joins on student_id can use an index built on STRING keys"
         correct: false
-        rationale: "The cast happens for joins inside the warehouse, two layers before any dashboard reads the data."
+        rationale: "BigQuery joins do not look keys up in an index; the cast is there so both sides of a join have the same type."
     sources:
       - {repo: warehouse, path: CLAUDE.md, commit: 9efbb8b979e3be90ded565726fba8da7597fd115}
       - {repo: warehouse, path: models/staging/data_sources/stg_gcs__nwea_map.sql, commit: 9efbb8b979e3be90ded565726fba8da7597fd115}
@@ -72,9 +72,9 @@ items:
     stem: "Which statement correctly describes the difference between mart_kimball and mart_obt?"
     artifact: null
     options:
-      - text: "mart_kimball serves clean-grain dimensions, facts and bridges for the MCP server and agents; mart_obt serves wide one-big-table models, fanned out for Looker Studio, connected Sheets and AppSheet"
+      - text: "mart_kimball serves clean-grain facts to agents; mart_obt serves wide tables to dashboards"
         correct: true
-        rationale: "This is how the README's diagram and Mart section split the two paths."
+        rationale: "This is how the README's diagram and Mart section split the two paths: mart_kimball holds clean-grain dimensions, facts and bridges for the MCP server and agents, and mart_obt holds wide one-big-table models, fanned out for Looker Studio, connected Sheets and AppSheet."
       - text: "mart_kimball serves Looker Studio dashboards; mart_obt serves the MCP server and agents"
         correct: false
         rationale: "That swaps the consumers: dashboards read the wide OBT tables, and agents read the clean-grain Kimball model."
@@ -130,13 +130,13 @@ items:
               graduation_year               as student_graduation_year,
               ...
     options:
-      - text: "They are primary and foreign keys, and the house rule casts every key to STRING in the staging model that produces it so joins never hit an INT64-vs-STRING mismatch"
+      - text: "They are keys, and keys are cast to STRING in staging so joins agree"
         correct: true
-        rationale: "student_id, advisor_id and student_household_id are join keys; gender and graduation_year are attributes, which the rule does not cover."
+        rationale: "The house rule casts every primary and foreign key to STRING in the staging model that produces it, so joins never hit an INT64-vs-STRING mismatch; student_id, advisor_id and student_household_id are join keys, while gender and graduation_year are attributes the rule does not cover."
       - text: "They are personal data, and casting them to STRING masks the values"
         correct: false
         rationale: "A cast changes the type, not the value; masking or anonymising is done by dedicated macros."
-      - text: "dbt's ref() only works on STRING columns"
+      - text: "dbt's ref() can only join models on STRING columns"
         correct: false
         rationale: "ref() points at models, not columns; it has no bearing on column types."
       - text: "It makes the columns sort alphabetically on dashboards"
@@ -152,9 +152,9 @@ items:
     stem: "An analyst runs AVG() over a score column in a mart_obt table and gets a result weighted toward students with many teachers and enrolments. What is going on?"
     artifact: null
     options:
-      - text: "OBT models fan facts out by enrolment, staff and identity, so a score repeats on every fan-out row; aggregate at the measure's own grain, for example with COUNT(DISTINCT) or select distinct first"
+      - text: "Each score repeats on every fan-out row; aggregate at the score's own grain"
         correct: true
-        rationale: "The README warns that averaging or summing over an obt_/mart_obt model needs a dedup key, because the fan-out is the point of the layer."
+        rationale: "OBT models fan facts out by enrolment, staff and identity, and the README warns that averaging or summing over an obt_/mart_obt model needs a dedup key, because the fan-out is the point of the layer; select distinct at the measure's grain first."
       - text: "mart_obt tables are views, so the average is recomputed differently each time it is queried"
         correct: false
         rationale: "Prod marts are materialized as tables; the skew comes from repeated rows, not from recomputation."

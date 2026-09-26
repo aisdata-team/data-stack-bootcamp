@@ -17,9 +17,9 @@ items:
     stem: "Before the salted macros, `anon_person_id` was computed as `MOD(student_id, 10000)`. Why did that not really anonymise anyone?"
     artifact: null
     options:
-      - text: "MOD is a public function, so anyone with query access and the identified id could recompute the mapping and re-identify the rows"
+      - text: "MOD is public, so anyone with the real id could recompute the bucket"
         correct: true
-        rationale: "The macro's header says exactly this: MOD and an unsalted MD5 are public, so the id-to-pseudonym map could be reproduced."
+        rationale: "The macro's header says exactly this: MOD and an unsalted MD5 are public, so anyone with query access and the identified id could reproduce the id-to-pseudonym map and re-identify the rows."
       - text: "The result was INT64 rather than STRING, so it could be joined back to other tables"
         correct: false
         rationale: "The salted bucket keys deliberately stay INT64 too; the type was never the weakness, recomputability was."
@@ -36,7 +36,7 @@ items:
     pool: A
     unit: null
     type: artifact
-    stem: "This macro supplies the salt to `anon_bucket` and `anon_pseudonym`. The production dbt build starts on the VM and `DBT_ANON_SALT` is missing from the container's environment. What happens?"
+    stem: "This macro supplies the salt to `anon_bucket` and `anon_pseudonym`. The nightly production build (target `prod`) starts without the salt available to it. What happens?"
     artifact: |
       {% macro _anon_salt() %}
           {%- if target.name == 'prod' -%}
@@ -68,9 +68,9 @@ items:
     stem: "Where does the salt used by the production dbt build live?"
     artifact: null
     options:
-      - text: "In Secret Manager, rendered into the VM container's `.env` as `DBT_ANON_SALT` at deploy — not in dbt Cloud and not in any repo"
+      - text: "In Secret Manager, rendered into the VM's `.env` at deploy time"
         correct: true
-        rationale: "The macro's header and orchestration CLAUDE.md agree: secrets come from Secret Manager via render-secrets.sh, and the salt is unreadable from BigQuery and from the repo."
+        rationale: "The macro's header and orchestration CLAUDE.md agree: secrets come from Secret Manager, rendered into `.env` as DBT_ANON_SALT by render-secrets.sh; the salt is not in dbt Cloud or any repo, so it is unreadable from BigQuery and from the repo."
       - text: "In dbt Cloud's environment variables, so dev and prod anonymise identically"
         correct: false
         rationale: "The salt is deliberately not stored in dbt Cloud, which is dev-only; dev runs with an empty salt."
@@ -108,29 +108,40 @@ items:
     pool: B
     unit: null
     type: artifact
-    stem: "The warehouse runs `dbt parse` in CI on every pull request. From this README excerpt, why does CI need no anonymization salt?"
+    stem: "The warehouse runs `dbt parse` in CI on every pull request. Using these three excerpts, why does CI need no anonymization salt?"
     artifact: |
-      `dbt parse` builds `target/manifest.json` from project source alone. It never
-      connects, so `ci/profiles.yml` is a committed stub with a deliberately fake project
-      — if a future change makes CI try to connect, it fails loudly rather than quietly
-      reaching a real dataset. [...] The CI target is named `ci`, never `prod`,
-      so `macros/anonymization_keys.sql` takes the empty-salt branch and no Secret Manager
-      value is required
+      README.md, "Why no credentials are needed":
+        `dbt parse` builds `target/manifest.json` from project source alone. It never
+        connects, so `ci/profiles.yml` is a committed stub with a deliberately fake project
+
+      ci/profiles.yml:
+        ais_data_warehouse:
+          target: ci
+
+      macros/anonymization_keys.sql:
+        {% macro _anon_salt() %}
+            {%- if target.name == 'prod' -%}
+                {{ env_var('DBT_ANON_SALT') }}
+            {%- else -%}
+                {{ env_var('DBT_ANON_SALT', '') }}
+            {%- endif -%}
+        {% endmacro %}
     options:
-      - text: "Its target is `ci`, so the macro takes the empty-salt branch, and CI never connects to a real dataset or reads a row"
+      - text: "Its target is `ci`, so the macro takes the empty-default branch"
         correct: true
-        rationale: "Only target `prod` demands the salt, and CI's stub profile points at a fake project it never connects to."
+        rationale: "Only target `prod` has no default and demands the salt; CI's target is `ci`, so env_var falls back to an empty string, and the stub profile's fake project is never connected to."
       - text: "The salt is committed in `ci/profiles.yml` for CI's use"
         correct: false
         rationale: "The profile is a stub with a deliberately fake project; the salt is never committed to the repo."
-      - text: "CI reads the salt from a GitHub Actions secret"
+      - text: "CI reads the real salt from a GitHub Actions secret on each run"
         correct: false
-        rationale: "The README says none of the CI workflows holds a credential, opens a warehouse connection or reads a row of data."
+        rationale: "ci/profiles.yml says CI needs no GitHub secret, and the README says none of the CI workflows holds a credential or reads a row of data."
       - text: "CI builds against the dev dataset, where anonymization is switched off"
         correct: false
         rationale: "CI builds nothing against any dataset; `dbt parse` works from source alone and never connects."
     sources:
       - {repo: warehouse, path: README.md, commit: 9efbb8b979e3be90ded565726fba8da7597fd115}
+      - {repo: warehouse, path: ci/profiles.yml, commit: 9efbb8b979e3be90ded565726fba8da7597fd115}
       - {repo: warehouse, path: macros/anonymization_keys.sql, commit: 9efbb8b979e3be90ded565726fba8da7597fd115}
   - id: P6-B-03
     pool: B

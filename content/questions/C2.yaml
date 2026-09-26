@@ -71,9 +71,9 @@ items:
     stem: "Claude Code built the ledger digest (`scripts/ledger-digest.py`) and tells you RM-162's status from it. You want to quote that status to a colleague and then update the row. What does CLAUDE.md say to do?"
     artifact: null
     options:
-      - text: "Use the digest to find and rank, then open planning/ROADMAP.md at RM-162's row for the item you act on, and never write back from the digest"
+      - text: "Rank from the digest, but quote and edit from RM-162's row in ROADMAP.md"
         correct: true
-        rationale: "CLAUDE.md says to rank from the digest, open the source by heading for the items you act on, and never write back from it because it is lossy."
+        rationale: "CLAUDE.md says to rank from the digest, open the source (planning/ROADMAP.md) by heading for the items you act on, and never write back from the digest, because it is lossy."
       - text: "Quote and edit from the digest; it is generated from the source, so it says the same thing"
         correct: false
         rationale: "The digest is lossy by design, so a quote or a write-back from it can drop what the source says."
@@ -122,10 +122,10 @@ items:
         | ID | ... | L | S | Inherent | Mitigation Implemented? | Residual L | Residual S | Mitigated |
         | ORCH-102 | ... | 3 | 4 | 12 | Partial | 2 | 4 | 8 |
     options:
-      - text: "The answer quoted the inherent score; the residual (Mitigated) score is 8, which is Medium"
+      - text: "It quoted the inherent score; the residual score is 8 (Medium)"
         correct: true
-        rationale: "12 sits in the Inherent column; after the implemented controls, 2 × 4 = 8, and the register bands 5–9 as Medium."
-      - text: "The answer is right: 12 appears in the row"
+        rationale: "12 sits in the Inherent column; the residual (Mitigated) score after the implemented controls is 2 × 4 = 8, and the register bands 5–9 as Medium."
+      - text: "The answer is right, because 12 appears in ORCH-102's row"
         correct: false
         rationale: "The number is there but in the wrong column; checking a claim means checking what the cited cell actually measures."
       - text: "Inherent and residual are two names for the same score"
@@ -143,7 +143,7 @@ items:
     stem: "Why does this stack treat an answer from Claude Code that names no file you can check as not yet an answer?"
     artifact: null
     options:
-      - text: "The agent writes the code, the tests, the ledger entry, the risk score and the ranking, so a claim has to be checkable by an independent reader against the file"
+      - text: "Because the agent writes the work and its checks; only a reader of the file is independent"
         correct: true
         rationale: "ORCH-102 records that the operator is the only independent judgement and that most realised risks were the agent's correlated reasoning shipping with CI green."
       - text: "Because Claude Code cannot open files in the repos"
@@ -175,6 +175,9 @@ items:
     - text: Ask Claude Code whether it is sure
       correct: false
       rationale: The same reasoning checking itself is exactly what ORCH-102 warns about.
+    - text: Ask a second Claude Code session the same question
+      correct: false
+      rationale: A second session shares the same kind of reasoning, so agreement is not an independent check; only the file verifies the claim.
     sources:
     - repo: orchestration
       path: docs/risk-register.md
@@ -186,15 +189,18 @@ items:
     stem: What may the /next-steps skill change when you run it interactively?
     artifact: null
     options:
-    - text: Roadmap bookkeeping (statuses, Shipped moves) when the evidence is unambiguous, and never the risk register
+    - text: Roadmap bookkeeping only, such as statuses; never the risk register
       correct: true
-      rationale: Its SKILL.md limits edits to roadmap bookkeeping and says never to edit the register.
-    - text: Nothing at all; it only reports
+      rationale: Its SKILL.md limits edits to planning/ROADMAP.md bookkeeping (statuses, Shipped moves, ordering corrections) that follows mechanically from the evidence, and says never to edit the register.
+    - text: Nothing at all; it only reports its ranking
       correct: false
       rationale: That describes /project-analysis; /next-steps may make mechanical roadmap updates.
-    - text: Anything in the ledger, including risk scores
+    - text: Anything in the ledger, including the register's risk scores
       correct: false
-      rationale: Only /risk-analysis edits the register.
+      rationale: Only /risk-analysis edits the register; /next-steps proposes register changes.
+    - text: Only planning/next-steps-latest.md, even when run interactively
+      correct: false
+      rationale: Writing only that artifact is the CI-mode guardrail; run interactively it may also make roadmap bookkeeping edits.
     sources:
     - repo: orchestration
       path: .claude/skills/next-steps/SKILL.md
@@ -206,16 +212,22 @@ items:
     stem: Why can an agent's own tests miss a defect in its own code?
     artifact: null
     options:
-    - text: The tests can encode the same wrong assumption as the code, so both agree and CI is green
+    - text: The tests can share the code's wrong assumption
       correct: true
-      rationale: 21 of the register's 30 realised risks reached production with CI green for this reason (test-intent-review.yml).
-    - text: Agents never write tests
+      rationale: When the tests encode the same wrong assumption as the code, both agree and CI is green; 21 of the register's 30 realised risks reached production with CI green for this reason (test-intent-review.yml).
+    - text: Agents are not allowed to write tests here
       correct: false
-      rationale: They do; the problem is that the tests share the code's reasoning.
-    - text: CI does not run tests written by agents
+      rationale: They do write them; the problem is that the tests share the code's reasoning.
+    - text: CI skips tests that an agent wrote itself
       correct: false
       rationale: CI runs every test; a green run just can't catch a shared assumption.
+    - text: The test-intent reviewer never looks at test files
+      correct: false
+      rationale: It reads exactly the test diff, alongside the PR's Requirements section and the changed-file names.
     sources:
     - repo: orchestration
       path: .github/workflows/test-intent-review.yml
+      commit: ea713797fe70d68779f9116577dda81dddcc4e6f
+    - repo: orchestration
+      path: CLAUDE.md
       commit: ea713797fe70d68779f9116577dda81dddcc4e6f

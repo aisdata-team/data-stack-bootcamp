@@ -64,22 +64,32 @@ items:
   - id: F1-A-03
     pool: A
     unit: null
-    type: mcq
-    stem: "`ais-sandbox.training.enrollment_history` has several rows per student, each with an `updated_at`. Which change to `select * from` that table keeps exactly one row per student: the most recent?"
-    artifact: null
+    type: artifact
+    stem: "What does this query return for student S1001?"
+    artifact: |
+      -- ais-sandbox.training.enrollment_history
+      --   student_id | status    | updated_at
+      --   S1001      | Enrolled  | 2026-08-01
+      --   S1001      | Withdrawn | 2026-09-15
+      --   S1001      | Enrolled  | 2026-09-15
+      --   S1002      | Enrolled  | 2026-08-20
+
+      select student_id, status, updated_at
+      from `ais-sandbox.training.enrollment_history`
+      qualify row_number() over (partition by student_id order by updated_at desc) = 1
     options:
-      - text: "Add: qualify row_number() over (partition by student_id order by updated_at desc) = 1"
+      - text: "One row dated 2026-09-15, but which status is not defined"
         correct: true
-        rationale: "ROW_NUMBER numbers each student's rows newest-first, and QUALIFY filters on a window function's result."
-      - text: "Add: where row_number() over (partition by student_id order by updated_at desc) = 1"
+        rationale: "ROW_NUMBER always gives exactly one row the number 1, but the two 2026-09-15 rows tie on updated_at, so which of them gets it is arbitrary and can change between runs; add a tie-breaking column to the ORDER BY to make it deterministic."
+      - text: "Both rows dated 2026-09-15, because they tie"
         correct: false
-        rationale: "WHERE runs before window functions are computed, so BigQuery rejects a window function there; that is why QUALIFY exists."
-      - text: "Add: order by updated_at desc limit 1"
+        rationale: "That is what RANK would return; ROW_NUMBER never gives two rows the same number, so only one row per student passes the filter."
+      - text: "One row, Withdrawn, because it is listed first"
         correct: false
-        rationale: "This returns one row for the whole table, not one per student."
-      - text: "Change it to: select distinct *"
+        rationale: "A table has no inherent row order, so the order the rows are listed in does not decide which tied row is numbered 1."
+      - text: "An error, because ROW_NUMBER cannot break a tie"
         correct: false
-        rationale: "DISTINCT removes only rows that are identical in every column, and rows with different updated_at values are not."
+        rationale: "ROW_NUMBER always assigns distinct numbers, breaking ties arbitrarily; it never fails on a tie."
     sources: []
   - id: F1-B-01
     pool: B
@@ -89,9 +99,9 @@ items:
     artifact: |
       select count(*) as rows from `ais-sandbox.training.students`
     options:
-      - text: "ROWS is a reserved keyword in BigQuery, so it cannot be an unquoted alias; call it total_rows instead."
+      - text: "ROWS is a reserved keyword, so it cannot be an unquoted alias."
         correct: true
-        rationale: "ROWS is reserved (it is used in window frames such as ROWS BETWEEN), so the parser stops at it."
+        rationale: "ROWS is reserved (it is used in window frames such as ROWS BETWEEN), so the parser stops at it; the warehouse's house rule is to alias counts as total_rows instead."
       - text: "COUNT(*) needs a column name, such as COUNT(student_id)."
         correct: false
         rationale: "COUNT(*) is valid and counts every row; the problem is the alias, not the function."

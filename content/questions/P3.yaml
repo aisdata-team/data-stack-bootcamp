@@ -15,30 +15,35 @@ items:
     pool: A
     unit: null
     type: artifact
-    stem: "This is the exposure for one Looker Studio dashboard, from the warehouse's models/exposures.yml (URL and owner lines removed). A score on this dashboard looks wrong. Which dbt model does the exposure tell you to open first?"
+    stem: "This is part of the exposure for a Looker Studio dashboard, from the warehouse's models/exposures.yml (URL and owner lines removed). A student's NWEA MAP RIT score (map_test_rit_score) on this dashboard looks wrong. Which model does the exposure send you to first?"
     artifact: |
-      - name: dashboard_nwea_map_scores
-        label: "AIS NWEA MAP Scores"
-        description: "Dashboard of NWEA MAP assessment results across the school."
+      - name: dashboard_ps_admin
+        label: "PS Admin Dashboard"
+        description: "This dashboard is co-designed with and intended for the Primary School leadership team."
         type: dashboard
         maturity: low
         depends_on:
+          - ref('mart_enrollments_identities')
+          - ref('mart_master_attendance_student_identities')
+          - ref('mart_skill_marks')
           - ref('mart_nwea_map')
     options:
       - text: "mart_nwea_map"
         correct: true
-        rationale: "depends_on lists the models the dashboard reads, and mart_nwea_map is the only one declared, so tracing starts there."
-      - text: "mart_fct_nwea_map"
+        rationale: "It is the NWEA MAP model this dashboard declares, and it carries map_test_rit_score, so tracing the score starts there."
+      - text: "mart_skill_marks"
         correct: false
-        rationale: "That is the clean-grain Kimball fact over the same data, but the dashboard does not declare it; the OBT mart is what it reads."
+        rationale: "The dashboard does declare it, but it serves Primary School SkillTracker marks, not NWEA MAP test scores."
+      - text: "mart_nwea_map_enrollment_identities"
+        correct: false
+        rationale: "That model exists and teacher dashboards declare it, but this exposure does not, so this dashboard does not read it."
       - text: "fct_nwea_map"
         correct: false
         rationale: "That is further upstream in the chain; a dashboard never reads an intermediate model directly, so start at the declared mart and work back."
-      - text: "stg_gcs__nwea_map"
-        correct: false
-        rationale: "Staging is near the end of the trace, not the start; you reach it by working back from the mart."
     sources:
       - {repo: warehouse, path: models/exposures.yml, commit: 9efbb8b979e3be90ded565726fba8da7597fd115}
+      - {repo: warehouse, path: models/mart/mart_obt/academics/mart_nwea_map.sql, commit: 9efbb8b979e3be90ded565726fba8da7597fd115}
+      - {repo: warehouse, path: models/mart/mart_obt/academics/mart_skill_marks.sql, commit: 9efbb8b979e3be90ded565726fba8da7597fd115}
       - {repo: warehouse, path: README.md, commit: 9efbb8b979e3be90ded565726fba8da7597fd115}
   - id: P3-A-02
     pool: A
@@ -70,13 +75,13 @@ items:
     stem: "stg_gcs__nwea_map reads the source table data_sources.nwea_map. How does NWEA MAP Growth data get into it?"
     artifact: null
     options:
-      - text: "Each nightly warehouse run's NWEA MAP import pulls NWEA's Combined Data File and writes monthly CSVs to gs://ais_data_import/nwea_map/, which BigQuery reads as an external table"
+      - text: "The nightly NWEA MAP import writes CSVs to GCS, read as an external table"
         correct: true
-        rationale: "The AIS Warehouse page describes this NWEA MAP DEX path, and the warehouse's data_sources group is the GCS-sourced CSVs, NWEA MAP Growth among them."
-      - text: "A dlt sync loads it into a data_import_dlt_* dataset"
+        rationale: "The AIS Warehouse page describes this NWEA MAP DEX path: each nightly warehouse run's import pulls NWEA's Combined Data File and writes monthly CSVs to gs://ais_data_import/nwea_map/; the warehouse's data_sources group is the GCS-sourced CSVs, NWEA MAP Growth among them."
+      - text: "A dlt sync pulls it from NWEA's API into a data_import_dlt_* dataset"
         correct: false
         rationale: "The dlt syncs cover MARIO, Veracross, Toddle and ManageBac; NWEA arrives as CSVs in GCS."
-      - text: "It comes in with the Veracross Data Packages export"
+      - text: "It arrives with the Veracross Data Packages CSVs under data_import_vx/"
         correct: false
         rationale: "The Data Packages land in data_import_vx and carry Veracross entities, not NWEA test results."
       - text: "Teachers enter scores into a Google Sheet that is exposed as an external table"
@@ -122,7 +127,7 @@ items:
     pool: B
     unit: null
     type: ordering
-    stem: "Trace a check-in column in mart_fct_mario_checkins back to where it enters the warehouse. Put the stops in order, starting with the mart."
+    stem: "Trace the column mario_checkin_result_answer in mart_fct_mario_checkins back to where it enters the warehouse. Put the stops in order, starting with the mart."
     artifact: null
     steps:
       - text: "mart_fct_mario_checkins"
@@ -130,7 +135,7 @@ items:
       - text: "fct_mario_checkins"
         rationale: "The fact at natural grain; among other things it reads int_mario_checkins_unnest."
       - text: "int_mario_checkins_unnest"
-        rationale: "A support int_ model that unnests the JSON arrays of check-in responses and results; it reads stg_mario__check_ins."
+        rationale: "A support int_ model that unnests the JSON arrays of check-in responses and results; it pulls each response's answer out of stg_mario__check_ins' questionResponses JSON as mario_checkin_result_answer."
       - text: "stg_mario__check_ins"
         rationale: "The staging model, which selects from the source table."
       - text: "The source table data_import_dlt_mario.get_check_ins_by_id"
@@ -148,16 +153,16 @@ items:
     stem: "stg_vx__students reads the source table data_import_vx.Data_Package_Students. How does Veracross data get into it?"
     artifact: null
     options:
-      - text: "Veracross's nightly Data Packages export drops CSV files into gs://ais_data_import/data_import_vx/, which BigQuery reads as external tables"
+      - text: "Veracross's Data Packages export drops CSVs in GCS, read as external tables"
         correct: true
-        rationale: "The warehouse README describes data_import_vx as Data Packages CSVs exposed as external tables, and the AIS Warehouse page gives the GCS path."
-      - text: "The Veracross dlt sync loads it from the v3 API"
+        rationale: "The warehouse README describes data_import_vx as Data Packages CSVs exposed as external tables, and the AIS Warehouse page gives the GCS path, gs://ais_data_import/data_import_vx/."
+      - text: "The Veracross dlt sync loads it nightly from the Veracross v3 API"
         correct: false
         rationale: "The dlt sync lands in a different dataset, data_import_dlt_vx; data_import_vx is the Data Packages export."
-      - text: "Airbyte's List_* extracts load it each night"
+      - text: "Airbyte's nightly List_* extracts load it from the Veracross API"
         correct: false
         rationale: "The Airbyte List_* tables were decommissioned on 2026-07-08, and their dlt replacements land in data_import_dlt_vx, not here."
-      - text: "A dbt snapshot of the students table writes it"
+      - text: "A dbt snapshot of the students table writes it after each build"
         correct: false
         rationale: "Snapshots write to data_snapshots and read staging; they are downstream of this source, not what fills it."
     sources:

@@ -14,20 +14,22 @@ items:
   - id: F3-A-01
     pool: A
     unit: null
-    type: ordering
-    stem: "You have a fresh clone of the repository on main. Put the steps for getting a change reviewed in a pull request in order."
+    type: mcq
+    stem: "Following this repo's practice of branching before you touch any file, you ran `git switch -c fix-attendance-filter`, edited one file, committed it (1 file changed) and ran `git push -u origin fix-attendance-filter`, which succeeded. Your reviewer says there is still nothing for them to review. What is missing?"
     artifact: null
-    steps:
-      - text: "git switch -c fix-attendance-filter"
-        rationale: "Create and move onto a new branch first, so the work stays off main."
-      - text: "Edit the file, then git add it"
-        rationale: "Staging chooses which changes go into the next commit."
-      - text: "git commit -m \"Fix attendance filter\""
-        rationale: "Committing records the staged change in your local repository only."
-      - text: "git push -u origin fix-attendance-filter"
-        rationale: "Pushing sends the branch and its commits to GitHub; until then nobody else can see them."
-      - text: "Open a pull request on GitHub from fix-attendance-filter into main"
-        rationale: "A pull request needs the branch to exist on GitHub, so it comes after the push."
+    options:
+      - text: "A pull request from fix-attendance-filter into main"
+        correct: true
+        rationale: "The push put the branch and its commit on GitHub, but a reviewer reviews a pull request; until one is opened from the branch into main there is nothing to review."
+      - text: "git commit again, because the push sent nothing"
+        correct: false
+        rationale: "The commit reported 1 file changed and the push succeeded, so the commit is already on GitHub."
+      - text: "git merge main, to put the change onto main first"
+        correct: false
+        rationale: "Merging into main is what a reviewed pull request ends with; doing it first would skip the review entirely."
+      - text: "git pull, so that GitHub can see the new branch"
+        correct: false
+        rationale: "Pull brings other people's commits down to you; the push already put your branch on GitHub."
     sources: []
   - id: F3-A-02
     pool: A
@@ -47,16 +49,16 @@ items:
            from source
        )
     options:
-      - text: "It replaces the grade_level column with grade_level cast to INT64 and renamed grade_level_number, so the output no longer has a column called grade_level."
+      - text: "It replaces grade_level with an INT64 column named grade_level_number."
         correct: true
-        rationale: "The - line is removed and the + line added in its place; the unmarked lines are unchanged context."
+        rationale: "The - line is removed and the + line added in its place, so the output no longer has a column called grade_level; the unmarked lines are unchanged context."
       - text: "It adds grade_level_number as a new column and keeps grade_level."
         correct: false
         rationale: "A line starting with - is deleted, not kept as context."
       - text: "It removes the cast and goes back to a plain grade_level column."
         correct: false
         rationale: "This reads the diff backwards: - is the old version (a/) and + is the new version (b/)."
-      - text: "It changes six lines, 8 to 13."
+      - text: "It changes six lines of the model, lines 8 to 13."
         correct: false
         rationale: "The @@ header counts the whole hunk shown, including unchanged context lines; only one line actually changes."
     sources: []
@@ -78,13 +80,13 @@ items:
           where attendance_status in ('Absent', 'Excused')
       >>>>>>> main
     options:
-      - text: "The top line is your branch's version (HEAD) and the bottom line is main's; you choose the result and delete all three marker lines."
+      - text: "The top line is your branch's version; the bottom line is main's."
         correct: true
-        rationale: "HEAD is the branch you are on, and the name after >>>>>>> is the branch being merged in."
+        rationale: "HEAD is the branch you are on, and the name after >>>>>>> is the branch being merged in; you choose the result and delete all three marker lines."
       - text: "The top line is main's version, because main is the original."
         correct: false
         rationale: "HEAD always means your current branch, whichever branch that is."
-      - text: "The top line is the original and the bottom line is the merged result Git proposes."
+      - text: "The top line is the original; the bottom is Git's proposed result."
         correct: false
         rationale: "Both halves are competing edits; Git proposes no result, which is why it stopped and asked you."
       - text: "Git has already kept the bottom line; the top is left only for reference."
@@ -95,7 +97,7 @@ items:
     pool: B
     unit: null
     type: mcq
-    stem: "You ran `git commit` on your branch fix-attendance-filter, but the pull request page on GitHub shows no new commit. What is missing?"
+    stem: "You ran `git commit` on your branch fix-attendance-filter and it reported 1 file changed, but the pull request page on GitHub shows no new commit. What is missing?"
     artifact: null
     options:
       - text: "git push, to send the new commit to the branch on GitHub"
@@ -127,10 +129,10 @@ items:
       +      and school_year = 2026
        )
     options:
-      - text: "It adds a second condition, so rows must now be Enrolled AND in school year 2026; the model returns the same rows or fewer."
+      - text: "It narrows the rows: they must be Enrolled and in school year 2026."
         correct: true
-        rationale: "Only the + line is new; the existing where line stays, and AND can only narrow the result."
-      - text: "It replaces the Enrolled filter with a school-year filter."
+        rationale: "Only the + line is new; the existing where line stays, and AND can only narrow the result, so the model returns the same rows or fewer."
+      - text: "It replaces the Enrolled filter with a filter on school year 2026."
         correct: false
         rationale: "The where line has no - in front of it, so it is unchanged context, not removed."
       - text: "It adds the 2026 rows to the output alongside the Enrolled rows."
@@ -158,16 +160,16 @@ items:
 
       no changes added to commit (use "git add" and/or "git commit -a")
     options:
-      - text: "Edit the file to the content you want and delete the conflict markers, then git add it and git commit."
+      - text: "Fix the file and delete the markers, then git add and git commit."
         correct: true
-        rationale: "git add marks the file as resolved, and the commit completes the merge."
-      - text: "Run git add and git commit straight away."
+        rationale: "Edit the file to the content you want and remove the <<<<<<< ======= >>>>>>> lines; git add then marks it resolved, and the commit completes the merge."
+      - text: "Run git add and git commit now, leaving the file as it is."
         correct: false
         rationale: "Git would accept it, but the <<<<<<< ======= >>>>>>> markers would be committed into the SQL."
       - text: "Run git push; GitHub resolves conflicts on the server."
         correct: false
         rationale: "Push sends only finished commits; the unfinished merge stays in your local repository, and GitHub does not resolve it for you."
-      - text: "Delete the file and run git pull again."
+      - text: "Delete the file and run git pull again to fetch a clean copy."
         correct: false
         rationale: "Deleting the file throws away both sides' changes, and Git refuses to pull while a merge is still unfinished."
     sources: []
@@ -176,22 +178,22 @@ items:
     pool: unit
     unit: F3-01
     type: mcq
-    stem: You edited notes.md, ran `git commit`, and your change is not on GitHub. What step is missing?
+    stem: You edited notes.md, ran `git add notes.md` and `git commit`, and the commit succeeded. You then pushed your branch and opened a pull request into main. What should the PR's Files changed tab show?
     artifact: null
     options:
-    - text: git push
+    - text: Only notes.md, with your one new line marked +
       correct: true
-      rationale: A commit is saved locally; push sends it to GitHub.
-    - text: git add
+      rationale: Files changed is the diff between your branch and main, so it lists only the file you changed and shows your added line with a +, just as git diff did before you committed.
+    - text: Every file in the repo, with notes.md highlighted
       correct: false
-      rationale: You needed add before commit, but the commit succeeded, so the missing step comes after it.
-    - text: Opening a pull request
+      rationale: The tab lists only files the branch changed; if more than one appears, your editor saved something extra.
+    - text: The whole of notes.md, with no + or - markers
       correct: false
-      rationale: A PR proposes merging a branch that is already on GitHub; the commits have to be pushed first.
-    sources:
-    - repo: orchestration
-      path: CLAUDE.md
-      commit: ea713797fe70d68779f9116577dda81dddcc4e6f
+      rationale: It shows a diff, not the file; unchanged lines appear only as context around your change.
+    - text: Only the commit message you wrote for the change
+      correct: false
+      rationale: Commit messages are on the Commits tab and in the PR's conversation; Files changed shows the lines themselves.
+    sources: []
   - id: F3-U-02
     pool: unit
     unit: F3-01
@@ -208,6 +210,9 @@ items:
     - text: Deleted two lines
       correct: false
       rationale: Only one line starts with -; the + line is an addition.
+    - text: Added a new first line and a new last line
+      correct: false
+      rationale: Lines that start with a space are unchanged context shown around the edit; only - and + lines changed.
     sources: []
   - id: F3-U-03
     pool: unit
@@ -225,6 +230,9 @@ items:
     - text: Re-run the tests on your own machine
       correct: false
       rationale: Local tests pass or fail on their own; they don't explain why GitHub started no checks.
+    - text: Re-run the CI workflows from the Actions tab
+      correct: false
+      rationale: There is no run to re-run; GitHub started none for the conflicted head, and it will start none until the conflict is resolved.
     sources:
     - repo: orchestration
       path: CLAUDE.md

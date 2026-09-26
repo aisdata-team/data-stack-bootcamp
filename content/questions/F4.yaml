@@ -150,9 +150,9 @@ items:
       stack-postgres-1    postgres:16                postgres    Up 2 hours                 5432/tcp
       stack-webserver-1   example/pipeline-app:1.4   webserver   Exited (1) 3 minutes ago
     options:
-      - text: "The webserver's process stopped with an error (exit code 1); read `docker compose logs webserver` to see why before starting it again."
+      - text: "The webserver crashed (exit code 1); read its logs before restarting it."
         correct: true
-        rationale: "A non-zero exit code means failure, and the service's logs usually hold the error that caused it."
+        rationale: "A non-zero exit code means failure, and `docker compose logs webserver` usually holds the error that caused it, so read it before starting the service again."
       - text: "The webserver finished its work successfully; nothing needs doing."
         correct: false
         rationale: "Exit code 0 means success; 1 means the process failed, and a webserver is meant to keep running."
