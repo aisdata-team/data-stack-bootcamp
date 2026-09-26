@@ -171,3 +171,61 @@ items:
         correct: false
         rationale: "Deleting the file throws away both sides' changes, and Git refuses to pull while a merge is still unfinished."
     sources: []
+  # --- unit checks (pool: unit) ---
+  - id: F3-U-01
+    pool: unit
+    unit: F3-01
+    type: mcq
+    stem: You edited notes.md, ran `git commit`, and your change is not on GitHub. What step is missing?
+    artifact: null
+    options:
+    - text: git push
+      correct: true
+      rationale: A commit is saved locally; push sends it to GitHub.
+    - text: git add
+      correct: false
+      rationale: You needed add before commit, but the commit succeeded, so the missing step comes after it.
+    - text: Opening a pull request
+      correct: false
+      rationale: A PR proposes merging a branch that is already on GitHub; the commits have to be pushed first.
+    sources:
+    - repo: orchestration
+      path: CLAUDE.md
+      commit: ea713797fe70d68779f9116577dda81dddcc4e6f
+  - id: F3-U-02
+    pool: unit
+    unit: F3-01
+    type: artifact
+    stem: Reading this diff, what did the change do?
+    artifact: "--- a/notes.md\n+++ b/notes.md\n@@ -3,3 +3,3 @@\n - first line\n-- learner-a was here on 2026-10-01\n+- learner-a was here on 2026-10-02\n - last line\n"
+    options:
+    - text: 'Replaced one line: the date changed from 1 to 2 October'
+      correct: true
+      rationale: In a diff an edit is shown as the old line removed (-) and the new line added (+).
+    - text: Added a new line and kept the old one
+      correct: false
+      rationale: The - line means the old one was removed.
+    - text: Deleted two lines
+      correct: false
+      rationale: Only one line starts with -; the + line is an addition.
+    sources: []
+  - id: F3-U-03
+    pool: unit
+    unit: F3-01
+    type: mcq
+    stem: A PR in the orchestration repo shows no CI checks at all, ten minutes after it was opened. What should you check first?
+    artifact: null
+    options:
+    - text: Whether the PR has a merge conflict
+      correct: true
+      rationale: GitHub runs no PR workflows on a conflicted head, so a conflicted PR shows zero checks (orchestration CLAUDE.md).
+    - text: Nothing; CI is just slow, so keep waiting
+      correct: false
+      rationale: Zero checks is not slowness; a session that waits for them waits forever.
+    - text: Re-run the tests on your own machine
+      correct: false
+      rationale: Local tests pass or fail on their own; they don't explain why GitHub started no checks.
+    sources:
+    - repo: orchestration
+      path: CLAUDE.md
+      commit: ea713797fe70d68779f9116577dda81dddcc4e6f

@@ -156,3 +156,64 @@ items:
         rationale: "A stalled runbook strengthens severity's justification and files the gaps; it does not lower the likelihood."
     sources:
       - {repo: orchestration, path: docs/risk-register.md, commit: ea713797fe70d68779f9116577dda81dddcc4e6f}
+  # --- unit checks (pool: unit) ---
+  - id: C1-U-01
+    pool: unit
+    unit: C1-01
+    type: mcq
+    stem: A CLAUDE.md rule ends with the citation (2026-08-06). How do you find the reasoning behind it?
+    artifact: null
+    options:
+    - text: grep DECISIONS.md for headings starting '## 2026-08-06' and pick the one matching the rule's topic
+      correct: true
+      rationale: Citations point at dated DECISIONS headings, and one date can hold many entries.
+    - text: Read DECISIONS.md from the top until you reach August
+      correct: false
+      rationale: It is about 1.3 MB; CLAUDE.md says to search it, never read it end to end.
+    - text: Look in the git log for commits made on 2026-08-06
+      correct: false
+      rationale: Commits show what changed; the reasoning lives in the DECISIONS entry.
+    sources:
+    - repo: orchestration
+      path: CLAUDE.md
+      commit: ea713797fe70d68779f9116577dda81dddcc4e6f
+  - id: C1-U-02
+    pool: unit
+    unit: C1-01
+    type: mcq
+    stem: Why is CLAUDE.md kept short, when DECISIONS.md is allowed to grow very large?
+    artifact: null
+    options:
+    - text: CLAUDE.md is loaded on every turn of every session, so its size is paid constantly; DECISIONS.md is only searched when needed
+      correct: true
+      rationale: The 2026-09-08 entry records a 47 KB CLAUDE.md costing about 12k tokens per turn before any work began.
+    - text: Short files are easier for GitHub to display
+      correct: false
+      rationale: Display is not the reason; cost on every turn is.
+    - text: DECISIONS.md is archived regularly, so its size doesn't matter
+      correct: false
+      rationale: It is never archived, split, summarised or pruned.
+    sources:
+    - repo: orchestration
+      path: CLAUDE.md
+      commit: ea713797fe70d68779f9116577dda81dddcc4e6f
+  - id: C1-U-03
+    pool: unit
+    unit: C1-01
+    type: mcq
+    stem: What does risk ORCH-102 score?
+    artifact: null
+    options:
+    - text: That one operator with one agent is the whole change loop, and the written record meant to cover for that has never been used by a second person
+      correct: true
+      rationale: 'ORCH-102 calls it a control-verification gap: a mitigation nobody has exercised is scored as if it works.'
+    - text: That the single VM could fail
+      correct: false
+      rationale: That is a different risk (ORCH-01).
+    - text: That Claude Code writes bad code
+      correct: false
+      rationale: It says explicitly that it is not a judgement that the model is wrong.
+    sources:
+    - repo: orchestration
+      path: docs/risk-register.md
+      commit: ea713797fe70d68779f9116577dda81dddcc4e6f
