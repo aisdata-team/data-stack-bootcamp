@@ -11,9 +11,8 @@ sandbox.
 
 ## Before the pilot (operator)
 
-0. **Check every link in `content/external.yaml`** for the pilot skills (F1–F5, P2, P4). Open
-   each one, confirm it is live, free and still covers `parts`, then set `checked:` to the date.
-   Remove anything dead or paywalled. The links could not be opened when they were chosen.
+0. ~~**Check every link in `content/external.yaml`.**~~ Done 2026-09-29; all nine pass. Re-check
+   them before each new cohort.
 1. **Create `aisdata-team/data-stack-bootcamp-practice`** (private), containing a `README.md`
    and a `notes.md` with a few lines. Give both learners *Write* access.
 2. **Give both learners** *Read* access to `orchestration` and `warehouse`, Claude Code access,

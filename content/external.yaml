@@ -2,63 +2,62 @@
 # this stack; generic foundations come from these, bridged by a unit's
 # "How it looks in our stack" section.
 #
-# `checked` is the date someone opened the link and confirmed it is live, free and
-# still covers `parts`. null = NOT YET CHECKED. Every link below was chosen on
-# 2026-09-26 from a session whose network blocked these sites, so none could be
-# opened; the operator checks each before the pilot (pilot/PROTOCOL.md, step 0)
-# and drops anything dead or paywalled.
+# `checked` is the date someone opened the link and confirmed it is live, free (a
+# free sign-up is fine) and still covers `parts`. null = NOT YET CHECKED.
+# All nine were checked by the operator on 2026-09-29. Re-check any link
+# before a new cohort starts, and drop anything dead or paywalled.
 courses:
   - skill: F1
     title: "SQLBolt — interactive SQL lessons"
     url: https://sqlbolt.com/
     parts: "Lessons 1–12 (SELECT through JOINs and aggregates)"
     minutes: 120
-    checked: null
+    checked: 2026-09-29
   - skill: F1
     title: "BigQuery sandbox — query without a billing account"
     url: https://docs.cloud.google.com/bigquery/docs/sandbox
     parts: "Setting up the sandbox, then querying a public dataset"
     minutes: 20
-    checked: null
+    checked: 2026-09-29
   - skill: F2
     title: "MIT Missing Semester — Course overview + the shell"
     url: https://missing.csail.mit.edu/2020/course-shell/
     parts: "The lecture notes and exercises"
     minutes: 60
-    checked: null
+    checked: 2026-09-29
   - skill: F3
     title: "GitHub Docs — Hello World"
     url: https://docs.github.com/en/get-started/start-your-journey/hello-world
     parts: "The whole tutorial: repository, branch, commit, pull request, merge"
     minutes: 30
-    checked: null
+    checked: 2026-09-29
   - skill: F4
     title: "Docker Docs — Get started"
     url: https://docs.docker.com/get-started/
     parts: "Docker concepts: containers, images, and Compose"
     minutes: 60
-    checked: null
+    checked: 2026-09-29
   - skill: F5
     title: "Google Cloud — IAM overview"
     url: https://docs.cloud.google.com/iam/docs/overview
     parts: "Principals, roles, policies"
     minutes: 30
-    checked: null
+    checked: 2026-09-29
   - skill: F5
     title: "Google Cloud — Secret Manager overview"
     url: https://docs.cloud.google.com/secret-manager/docs/overview
     parts: "What a secret and a version are; access control"
     minutes: 15
-    checked: null
+    checked: 2026-09-29
   - skill: P2
     title: "dbt Learn — dbt Fundamentals"
     url: https://learn.getdbt.com/courses/dbt-fundamentals
     parts: "Models, sources, tests and documentation"
     minutes: 300
-    checked: null
+    checked: 2026-09-29
   - skill: P4
     title: "Dagster University"
     url: https://courses.dagster.io/
     parts: "Dagster Essentials: assets, jobs, schedules and sensors"
     minutes: 180
-    checked: null
+    checked: 2026-09-29
